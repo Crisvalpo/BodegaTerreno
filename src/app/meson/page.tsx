@@ -11,6 +11,7 @@ import {
   Database, ClipboardList, Package
 } from 'lucide-react'
 import ScannerModal from '@/components/ScannerModal'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { searchOrdersByRutAction } from '../actions/stock'
 import { cleanRut, formatRut, parseRutFromScan, validateRut } from '@/lib/rutUtils'
 
@@ -56,9 +57,30 @@ export default function MesonPage() {
   const [foundItems, setFoundItems] = useState<any[]>([])
 
   const [activeTab, setActiveTab] = useState<'entrega' | 'pendientes'>('entrega')
+  const searchParams = useSearchParams()
+  const orderId = searchParams.get('id')
   const [allPendientes, setAllPendientes] = useState<Pedido[]>([])
   const [isScannerOpen, setIsScannerOpen] = useState(false)
   const [rutSuggestions, setRutSuggestions] = useState<any[]>([])
+
+  useEffect(() => {
+    if (orderId) {
+      const fetchDirectOrder = async () => {
+        setIsLoading(true)
+        const { data, error } = await supabase
+          .from('pedidos')
+          .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(*, existencias(*, ubicaciones(*))))')
+          .eq('id', orderId)
+          .single()
+        
+        if (data && !error) {
+          setPedidoSeleccionado(data as any)
+        }
+        setIsLoading(false)
+      }
+      fetchDirectOrder()
+    }
+  }, [orderId])
 
   // DERIVADOS
   const itemsToProcess = isDirectMode ? directItems : (pedidoSeleccionado?.pedido_items || [])

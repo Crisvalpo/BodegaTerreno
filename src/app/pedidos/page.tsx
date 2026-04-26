@@ -208,6 +208,15 @@ export default function MisPedidos() {
                       </span>
                     )}
                   </div>
+                  {(user?.rol === 'admin' || user?.rol === 'bodeguero') && p.estado !== 'entregado' && (
+                    <Link 
+                      href={`/meson?id=${p.id}`}
+                      className="mt-4 w-full bg-emerald-600 text-black py-4 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-emerald-600/20"
+                    >
+                      <Activity size={16} />
+                      Comenzar Preparación
+                    </Link>
+                  )}
                 </div>
               )
             })
