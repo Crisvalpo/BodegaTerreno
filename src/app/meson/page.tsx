@@ -602,8 +602,10 @@ export default function MesonPage() {
                 >
                   {isLoading ? <Loader2 size={16} className="animate-spin" /> : 'Finalizar Pedido con Notas'}
                 </button>
-              </div>
-            )}
+                </div>
+              )}
+            </>
+          )}
           </>
         ) : (
             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4">
