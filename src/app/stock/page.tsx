@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -42,7 +42,7 @@ type StockItem = {
   }
 }
 
-export default function DashboardPage() {
+function StockContent() {
   const searchParams = useSearchParams()
   const [stock, setStock] = useState<StockItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -491,5 +491,20 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
+          <p className="text-neutral-700 font-black uppercase tracking-[0.4em] text-[10px]">Cargando Inventario...</p>
+        </div>
+      </div>
+    }>
+      <StockContent />
+    </Suspense>
   )
 }

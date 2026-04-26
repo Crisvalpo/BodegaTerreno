@@ -58,6 +58,20 @@ export default function MesonPage() {
   const [rutSuggestions, setRutSuggestions] = useState<any[]>([])
   const [isScannerOpen, setIsScannerOpen] = useState(false)
 
+  // DERIVADOS
+  const itemsToProcess = isDirectMode ? directItems : (pedidoSeleccionado?.pedido_items || [])
+
+  const handleUpdateQty = (id: string, delta: number) => {
+    setQuantitiesToDeliver(prev => ({
+      ...prev,
+      [id]: Math.max(0, (prev[id] || 0) + delta)
+    }))
+  }
+
+  const handleDespachar = () => {
+    procesarDespacho(pedidoSeleccionado, itemsToProcess)
+  }
+
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleBlur = () => {
