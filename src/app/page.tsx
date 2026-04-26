@@ -51,104 +51,112 @@ export default function Home() {
   const isBodeguero = user.rol === 'bodeguero' || isAdmin
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white p-6 md:p-12 relative overflow-hidden">
+    <main className="min-h-screen bg-[#050505] text-white p-6 md:p-12 relative overflow-hidden">
       {/* Background Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-600/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-600/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-600/5 blur-[120px] pointer-events-none" />
 
-      <div className="max-w-5xl mx-auto relative z-10">
+      <div className="max-w-6xl mx-auto relative z-10">
         
-        {/* Header con Perfil */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-[1.5rem] bg-neutral-900 border border-white/10 flex items-center justify-center shadow-2xl relative group">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <User className="w-8 h-8 text-emerald-500 relative z-10" />
+        {/* Header Superior Premium */}
+        <header className="flex items-start justify-between mb-12 animate-in fade-in slide-in-from-top-6 duration-700">
+          <div className="flex items-center gap-6">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="w-20 h-20 rounded-[2.2rem] bg-neutral-900/50 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-2xl relative z-10">
+                <User className="w-10 h-10 text-emerald-500" />
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tighter leading-none mb-1.5 uppercase">
-                {user.nombre}
-              </h1>
-              <div className="flex items-center gap-2">
-                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em] shadow-lg ${
-                  isAdmin ? 'bg-emerald-500 text-neutral-950' : isBodeguero ? 'bg-blue-500 text-white' : 'bg-amber-500 text-neutral-950'
+            <div className="flex flex-col">
+              <div className="flex items-center gap-3 mb-1">
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg ${
+                  isAdmin ? 'bg-emerald-500 text-neutral-950 shadow-emerald-500/20' : isBodeguero ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-amber-500 text-neutral-950 shadow-amber-500/20'
                 }`}>
                   {user.rol}
                 </span>
-                <div className="h-1 w-1 rounded-full bg-neutral-700" />
-                <span className="text-neutral-500 text-xs font-bold tracking-tight">{user.rut}</span>
+                <span className="text-neutral-600 text-[10px] font-black uppercase tracking-widest">{user.rut}</span>
               </div>
+              <h1 className="text-4xl font-black tracking-tighter leading-none italic">
+                {user.nombre.split(' ')[0]} <span className="text-neutral-500 not-italic">{user.nombre.split(' ')[1] || ''}</span>
+              </h1>
             </div>
           </div>
           
           <button 
             onClick={handleLogout}
-            className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/5 hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 text-neutral-400 hover:text-red-400 font-bold transition-all group text-sm"
+            className="p-4 rounded-2.5xl bg-neutral-900/50 border border-white/5 text-neutral-500 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-all shadow-xl group"
+            title="Cerrar Sesión"
           >
-            <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            Cerrar Sesión
+            <LogOut className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
           </button>
         </header>
 
-        {/* Grid de Accesos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-          
-          {/* Módulos de Terreno e Información General (Para todos) */}
+        {/* Quick Stats / KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12 animate-in fade-in slide-in-from-top-8 duration-700 delay-100">
+          <StatCard label="Pedidos Hoy" value="12" color="emerald" />
+          <StatCard label="Pendientes" value="04" color="amber" />
+          <StatCard label="En Tránsito" value="08" color="blue" />
+          <StatCard label="Stock Crítico" value="02" color="rose" />
+        </div>
+
+        {/* Action Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200">
           <MenuCard 
             href="/pedidos/nuevo"
             title="Pre-Pedido"
-            desc="Solicita materiales para tu isométrico desde terreno."
-            icon={<Package className="w-7 h-7" />}
+            desc="Solicitud de materiales desde terreno."
+            icon={<Package className="w-8 h-8" />}
             color="amber"
           />
 
           <MenuCard 
             href="/dashboard"
             title="Stock & Métricas"
-            desc="Consulta existencias de materiales en tiempo real."
-            icon={<LayoutDashboard className="w-7 h-7" />}
+            desc="Consulta de existencias en tiempo real."
+            icon={<LayoutDashboard className="w-8 h-8" />}
             color="purple"
           />
 
-          {/* Módulos de Bodega (Admin y Bodeguero) */}
           {isBodeguero && (
             <>
               <MenuCard 
                 href="/meson"
-                title="Mesón Entregas"
-                desc="Gestión de despachos y escaneo de cédulas."
-                icon={<HandHeart className="w-7 h-7" />}
+                title="Mesón Bodega"
+                desc="Gestión de despachos y entregas."
+                icon={<HandHeart className="w-8 h-8" />}
                 color="blue"
               />
               <MenuCard 
                 href="/recepcion"
                 title="Recepción"
-                desc="Ingreso de nuevos materiales al inventario."
-                icon={<PackagePlus className="w-7 h-7" />}
+                desc="Ingreso masivo de materiales."
+                icon={<PackagePlus className="w-8 h-8" />}
                 color="emerald"
               />
             </>
           )}
 
-          {/* Módulos de Administración (Solo Admin) */}
           {isAdmin && (
             <MenuCard 
               href="/admin/usuarios"
-              title="Gestión Usuarios"
-              desc="Administra roles, permisos y acceso del personal."
-              icon={<ShieldCheck className="w-7 h-7" />}
+              title="Admin Usuarios"
+              desc="Control total de personal y roles."
+              icon={<ShieldCheck className="w-8 h-8" />}
               color="rose"
             />
           )}
         </div>
 
-        <footer className="mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-[10px] text-neutral-600 font-bold uppercase tracking-[0.2em]">LukeAPP Bodega Terreno v2.5</p>
-          <div className="flex gap-6">
-            <span className="text-[10px] text-neutral-700 font-black uppercase tracking-widest flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-              Servidor Activo
-            </span>
+        <footer className="mt-20 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] text-neutral-700 font-black uppercase tracking-[0.4em]">BODEGA TERRENO PREMIMUM v2.5</p>
+            <p className="text-[8px] text-neutral-800 font-bold uppercase tracking-widest">Desarrollado para Control de Obras Piping</p>
+          </div>
+          <div className="flex gap-8">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,1)] animate-pulse" />
+              <span className="text-[10px] text-neutral-600 font-black uppercase tracking-widest">En Línea</span>
+            </div>
           </div>
         </footer>
       </div>
@@ -156,27 +164,40 @@ export default function Home() {
   )
 }
 
-function MenuCard({ href, title, desc, icon, color }: { href: string, title: string, desc: string, icon: any, color: string }) {
-  const colorMap: any = {
-    emerald: 'from-emerald-500/10 to-emerald-500/0 hover:border-emerald-500/30 text-emerald-400 bg-emerald-500/5',
-    blue: 'from-blue-500/10 to-blue-500/0 hover:border-blue-500/30 text-blue-400 bg-blue-500/5',
-    purple: 'from-purple-500/10 to-purple-500/0 hover:border-purple-500/30 text-purple-400 bg-purple-500/5',
-    amber: 'from-amber-500/10 to-amber-500/0 hover:border-amber-500/30 text-amber-400 bg-amber-500/5',
-    rose: 'from-rose-500/10 to-rose-500/0 hover:border-rose-500/30 text-rose-400 bg-rose-500/5',
+function StatCard({ label, value, color }: { label: string, value: string, color: string }) {
+  const colors: any = {
+    emerald: 'text-emerald-400 border-emerald-500/10 bg-emerald-500/5',
+    amber: 'text-amber-400 border-amber-500/10 bg-amber-500/5',
+    blue: 'text-blue-400 border-blue-500/10 bg-blue-500/5',
+    rose: 'text-rose-400 border-rose-500/10 bg-rose-500/5'
   }
-
   return (
-    <Link href={href} className="group h-full">
-      <div className={`relative p-8 rounded-[2rem] border border-white/5 bg-gradient-to-br ${colorMap[color]} transition-all duration-500 hover:shadow-2xl hover:shadow-black/50 h-full flex flex-col`}>
-        <div className="mb-6 p-4 rounded-2xl bg-neutral-900/50 border border-white/10 w-fit group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-xl">
+    <div className={`p-6 rounded-[2rem] border backdrop-blur-xl ${colors[color]} flex flex-col items-center shadow-2xl`}>
+      <span className="text-3xl font-black tracking-tighter mb-1">{value}</span>
+      <span className="text-[9px] font-black uppercase tracking-widest opacity-60 text-center">{label}</span>
+    </div>
+  )
+}
+
+function MenuCard({ href, title, desc, icon, color }: { href: string, title: string, desc: string, icon: any, color: string }) {
+  const colors: any = {
+    amber: 'text-amber-500 bg-amber-500/10 group-hover:bg-amber-500/20 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]',
+    blue: 'text-blue-500 bg-blue-500/10 group-hover:bg-blue-500/20 group-hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]',
+    emerald: 'text-emerald-500 bg-emerald-500/10 group-hover:bg-emerald-500/20 group-hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]',
+    purple: 'text-purple-500 bg-purple-500/10 group-hover:bg-purple-500/20 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.15)]',
+    rose: 'text-rose-500 bg-rose-500/10 group-hover:bg-rose-500/20 group-hover:shadow-[0_0_30px_rgba(244,63,94,0.15)]',
+  }
+  
+  return (
+    <Link href={href} className="group relative">
+      <div className={`h-full p-8 bg-neutral-900/40 backdrop-blur-3xl rounded-[3rem] border border-white/5 transition-all duration-500 flex flex-col ${colors[color]}`}>
+        <div className="w-16 h-16 rounded-2.5xl flex items-center justify-center mb-8 bg-neutral-950 border border-white/5 shadow-inner">
           {icon}
         </div>
-        <div className="flex-1">
-          <h3 className="text-xl font-bold tracking-tight text-white mb-2 group-hover:text-white transition-colors">{title}</h3>
-          <p className="text-neutral-500 text-xs font-medium leading-relaxed mb-6">{desc}</p>
-        </div>
-        <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-neutral-700 group-hover:text-white transition-colors">
-          Acceder módulo <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+        <h3 className="text-2xl font-black text-white mb-2 tracking-tight group-hover:translate-x-1 transition-transform italic">{title}</h3>
+        <p className="text-sm text-neutral-500 font-medium leading-relaxed mb-6">{desc}</p>
+        <div className="mt-auto flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-white transition-colors">
+          Entrar Módulo <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
     </Link>

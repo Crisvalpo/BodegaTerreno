@@ -80,46 +80,57 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-emerald-600/5 blur-[150px] pointer-events-none" />
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 overflow-hidden relative">
+      {/* Orbes de luz de fondo */}
+      <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-600/10 blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] rounded-full bg-blue-600/5 blur-[100px]" />
+      
+      <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in duration-700">
+        <div className="bg-neutral-900/40 backdrop-blur-3xl rounded-[3.5rem] p-12 border border-white/10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)]">
+          <div className="flex flex-col items-center mb-10 text-center">
+            <div className="w-20 h-20 bg-emerald-500/10 rounded-[2rem] border border-emerald-500/20 flex items-center justify-center mb-6 shadow-inner">
+              <ShieldCheck className="w-10 h-10 text-emerald-500" />
+            </div>
+            <h1 className="text-3xl font-black text-white tracking-tighter mb-2 italic">BODEGA TERRENO</h1>
+            <p className="text-neutral-500 text-xs font-bold uppercase tracking-[0.3em]">Acceso de Personal</p>
+          </div>
 
-      <div className="w-full max-w-md relative z-10">
-        <div className="bg-neutral-900/40 backdrop-blur-3xl rounded-[3rem] p-10 border border-white/5 shadow-2xl shadow-black/50">
-          <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-8">
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">
-                  {isRegistering ? 'Confirmar RUT' : 'Identificación de Usuario'}
+          <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-10">
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.25em] ml-2">
+                  {isRegistering ? 'Confirmar RUT' : 'Identificación'}
                 </label>
                 <div className="relative group">
-                  <UserIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-emerald-500 transition-colors" />
+                  <UserIcon className="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-700 group-focus-within:text-emerald-500 transition-all duration-300" />
                   <input 
                     type="text" 
                     value={rut}
                     onChange={e => setRut(e.target.value.replace(/\./g, ''))}
                     placeholder="12345678-1"
                     disabled={isRegistering}
-                    className="w-full bg-neutral-950/50 border-2 border-neutral-800 rounded-[2rem] pl-16 pr-6 py-6 text-2xl font-black text-white focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-neutral-800 tracking-tight disabled:opacity-50"
+                    className="w-full bg-black/40 border-2 border-white/5 rounded-[2.2rem] pl-16 pr-8 py-7 text-2xl font-black text-white focus:outline-none focus:border-emerald-500/40 focus:bg-black/60 transition-all placeholder:text-neutral-800 tracking-tight disabled:opacity-50 shadow-inner"
                   />
                 </div>
               </div>
 
               {isRegistering && (
-                <div className="space-y-6 animate-in slide-in-from-top-4 duration-500">
-                  <div className="space-y-3">
-                    <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Nombre Completo</label>
+                <div className="space-y-8 animate-in slide-in-from-bottom-6 duration-700">
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.25em] ml-2">Nombre Completo</label>
                     <input 
                       type="text" 
                       value={nombre}
                       onChange={e => setNombre(e.target.value)}
-                      placeholder="Juan Pérez"
-                      className="w-full bg-neutral-950/50 border-2 border-neutral-800 rounded-[1.5rem] px-6 py-5 text-lg font-bold text-white focus:outline-none focus:border-emerald-500/50 transition-all"
+                      placeholder="Nombre y Apellido"
+                      className="w-full bg-black/40 border-2 border-white/5 rounded-[1.8rem] px-8 py-6 text-xl font-bold text-white focus:outline-none focus:border-emerald-500/40 focus:bg-black/60 transition-all placeholder:text-neutral-800"
                     />
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">WhatsApp / Teléfono</label>
-                    <div className="flex gap-2">
-                      <div className="bg-neutral-950/50 border-2 border-neutral-800 rounded-[1.5rem] px-5 py-5 text-lg font-black text-emerald-500 flex items-center justify-center min-w-[80px]">
+                  
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.25em] ml-2">WhatsApp / Teléfono</label>
+                    <div className="flex gap-3">
+                      <div className="bg-black/60 border-2 border-white/5 rounded-[1.8rem] px-6 py-6 text-xl font-black text-emerald-500 flex items-center justify-center min-w-[90px] shadow-inner">
                         +569
                       </div>
                       <input 
@@ -130,52 +141,51 @@ export default function LoginPage() {
                           setTelefono(val)
                         }}
                         placeholder="12345678"
-                        className="flex-1 bg-neutral-950/50 border-2 border-neutral-800 rounded-[1.5rem] px-6 py-5 text-lg font-bold text-white focus:outline-none focus:border-emerald-500/50 transition-all tracking-widest"
+                        className="flex-1 bg-black/40 border-2 border-white/5 rounded-[1.8rem] px-8 py-6 text-xl font-bold text-white focus:outline-none focus:border-emerald-500/40 focus:bg-black/60 transition-all tracking-[0.2em]"
                       />
                     </div>
-                    <p className="text-[9px] text-neutral-600 font-bold uppercase ml-4">Ingresa solo los 8 dígitos restantes</p>
+                    <p className="text-[9px] text-neutral-700 font-bold uppercase ml-6 tracking-widest">Ingresa 8 dígitos</p>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6 pt-4">
               <button 
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black py-6 rounded-[2rem] text-xl shadow-2xl shadow-emerald-500/20 flex items-center justify-center gap-3 transition-all disabled:opacity-50 active:scale-[0.98]"
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black py-7 rounded-[2.2rem] text-xl shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] flex items-center justify-center gap-4 transition-all duration-300 disabled:opacity-50 active:scale-[0.97] group"
               >
-                {isLoading ? <Loader2 className="animate-spin" /> : (
+                {isLoading ? <Loader2 className="animate-spin w-8 h-8" /> : (
                   <>
-                    {isRegistering ? 'Crear mi Cuenta' : 'Entrar al Sistema'}
-                    <ArrowRight className="w-6 h-6" />
+                    <span className="tracking-tight">{isRegistering ? 'CREAR CUENTA' : 'INGRESAR'}</span>
+                    <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
               </button>
 
-              {isRegistering && (
+              {isRegistering ? (
                 <button 
                   type="button"
                   onClick={() => setIsRegistering(false)}
-                  className="w-full text-neutral-500 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors py-2"
+                  className="w-full py-4 text-neutral-500 hover:text-white text-[10px] font-black uppercase tracking-[0.3em] transition-colors"
                 >
                   Volver al Login
                 </button>
+              ) : (
+                <div className="pt-6 border-t border-white/5 flex flex-col items-center gap-6">
+                  <div className="flex items-center gap-3 text-neutral-600">
+                    <ShieldCheck size={16} className="text-emerald-500/30" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.3em]">Registro Seguro de Obras</span>
+                  </div>
+                  <p className="text-[8px] text-neutral-700 font-bold uppercase text-center leading-loose tracking-[0.2em]">
+                    Desarrollado para Control de Obras Piping<br/>
+                    <span className="text-emerald-500/20">V 2.0 Premium Edition</span>
+                  </p>
+                </div>
               )}
             </div>
           </form>
-        </div>
-
-        <div className="mt-10 text-center flex flex-col gap-4">
-          <div className="flex items-center justify-center gap-6">
-            <div className="flex items-center gap-2 text-xs font-bold text-neutral-600 uppercase tracking-widest">
-              <ShieldCheck className="w-4 h-4 text-emerald-500/50" />
-              {isRegistering ? 'Registro Seguro' : 'Acceso Seguro'}
-            </div>
-          </div>
-          <p className="text-[10px] text-neutral-700 font-bold uppercase tracking-[0.2em]">
-            Desarrollado para Control de Obras Piping
-          </p>
         </div>
       </div>
     </div>
