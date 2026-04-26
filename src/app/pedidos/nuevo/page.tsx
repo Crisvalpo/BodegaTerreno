@@ -185,14 +185,57 @@ export default function NuevoPedido() {
                 <p className="text-xs text-neutral-500 uppercase tracking-widest mt-2">Vincular a Isométrico</p>
               </div>
 
-              <div className="space-y-4">
-                <input 
-                  type="text" value={isometricoQuery} onChange={e => setIsometricoQuery(e.target.value.toUpperCase())}
-                  placeholder="CÓDIGO ISO..."
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-6 py-5 text-lg font-mono text-blue-400"
-                />
-                <button onClick={handleIsometrico} className="w-full bg-blue-600 text-white font-black py-5 rounded-xl uppercase text-xs tracking-widest">
-                  Confirmar
+              <div className="space-y-4 relative">
+                <div className="relative group">
+                  <ScrollText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-700 group-focus-within:text-blue-500 transition-colors" />
+                  <input 
+                    type="text" 
+                    value={isometricoQuery} 
+                    onChange={e => {
+                      setIsometricoQuery(e.target.value.toUpperCase())
+                      // Búsqueda en tiempo real
+                      const query = e.target.value.toUpperCase()
+                      if (query.length >= 2) {
+                        supabase.from('isometricos').select('*').ilike('codigo', `%${query}%`).limit(5)
+                          .then(({ data }) => setIsoSuggestions(data || []))
+                      } else {
+                        setIsoSuggestions([])
+                      }
+                    }}
+                    placeholder="Escribe un indicio (ej. 1002)..."
+                    className="w-full bg-black border border-neutral-800 rounded-xl pl-12 pr-4 py-5 text-lg font-mono text-blue-400 focus:border-blue-500/50 outline-none shadow-2xl transition-all"
+                  />
+                </div>
+
+                {isoSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 w-full mt-2 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-neutral-800 animate-in fade-in slide-in-from-top-2">
+                    {isoSuggestions.map(iso => (
+                      <button 
+                        key={iso.id} 
+                        onClick={() => {
+                          setIsometrico(iso)
+                          setIsometricoQuery(iso.codigo)
+                          setIsoSuggestions([])
+                          setStep(3)
+                        }} 
+                        className="w-full text-left p-4 hover:bg-blue-500/10 transition-all flex items-center justify-between group"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-white font-black text-sm tracking-tighter uppercase italic">{iso.codigo}</span>
+                          <span className="text-[8px] text-neutral-500 font-bold uppercase tracking-widest italic">{iso.descripcion || 'Sin descripción'}</span>
+                        </div>
+                        <ChevronRight size={14} className="text-neutral-700 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleIsometrico} 
+                  disabled={!isometricoQuery}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all disabled:opacity-20"
+                >
+                  {isLoading ? <Loader2 className="animate-spin mx-auto" /> : 'Confirmar Selección'}
                 </button>
               </div>
             </div>
