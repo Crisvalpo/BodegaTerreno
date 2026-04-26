@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -29,6 +29,7 @@ type Pedido = {
       id: string
       ident_code: string
       descripcion: string
+      unidad: string
       existencias: {
         id: string
         cantidad: number
@@ -40,6 +41,18 @@ type Pedido = {
 }
 
 export default function MesonPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="text-emerald-500 animate-spin" size={32} />
+      </div>
+    }>
+      <MesonContent />
+    </Suspense>
+  )
+}
+
+function MesonContent() {
   const [rutBusqueda, setRutBusqueda] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [pedidos, setPedidos] = useState<Pedido[]>([])
@@ -96,7 +109,7 @@ export default function MesonPage() {
         setIsLoading(true)
         const { data, error } = await supabase
           .from('pedidos')
-          .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(*, existencias(*, ubicaciones(*))))')
+          .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(id, ident_code, descripcion, unidad, existencias(id, cantidad, ubicacion_id, ubicaciones(zona, rack, nivel))))')
           .eq('id', orderId)
           .single()
         
