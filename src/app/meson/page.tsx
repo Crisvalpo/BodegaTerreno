@@ -137,6 +137,7 @@ function MesonContent() {
   }
 
   const inputRef = useRef<HTMLInputElement>(null)
+  const isoInputRef = useRef<HTMLInputElement>(null)
 
   const handleBlur = () => {
     if (rutBusqueda && !rutBusqueda.includes('http')) {
@@ -199,6 +200,7 @@ function MesonContent() {
       const pedidos = res.pedidos || []
       
       if (pedidos.length === 0) {
+        setActiveTab('entrega')
         if (res.user) {
           setDirectUser(res.user)
           setIsDirectMode(true)
@@ -263,21 +265,29 @@ function MesonContent() {
 
   const addToDirect = (mat: any) => {
     if (!selectedIso) return toast.error('Selecciona primero un Isométrico')
-    const exists = directItems.find(i => i.id === mat.id && i.iso?.id === selectedIso.id)
-    if (exists) setDirectItems(directItems.map(i => (i.id === mat.id && i.iso?.id === selectedIso.id) ? {...i, cantidad: i.cantidad + 1} : i))
-    else setDirectItems([...directItems, {...mat, cantidad: 1, iso: selectedIso}])
+    const exists = directItems.find(i => i.id === mat.id)
+    if (exists) {
+      setQuantitiesToDeliver(prev => ({ ...prev, [mat.id]: (prev[mat.id] || 0) + 1 }))
+    } else {
+      setDirectItems([...directItems, { ...mat, iso: selectedIso }])
+      setQuantitiesToDeliver(prev => ({ ...prev, [mat.id]: 1 }))
+    }
     setItemSearch(''); setFoundItems([])
   }
 
   const procesarDespacho = async (pedidoInfo: any, items: any[]) => {
-    const total = items.reduce((acc, i) => acc + (isDirectMode ? i.cantidad : (quantitiesToDeliver[i.id] || 0)), 0)
+    const total = items.reduce((acc, i) => acc + (quantitiesToDeliver[i.id] || 0), 0)
     if (total <= 0) return toast.error('No hay cantidades para entregar')
 
     setIsLoading(true)
     try {
       let userId = isDirectMode ? directUser.id : pedidoInfo?.usuarios?.id
       if (isDirectMode && !userId) {
-        const { data: newUser, error } = await supabase.from('usuarios').insert({ rut: directUser.rut, nombre: directUser.nombre, telefono: directUser.telefono }).select().single()
+        const { data: newUser, error } = await supabase.from('usuarios').insert({ 
+          rut: directUser.rut.replace(/[\.-]/g, '').trim(), 
+          nombre: directUser.nombre, 
+          telefono: directUser.telefono 
+        }).select().single()
         if (error) throw error
         userId = newUser.id
       }
@@ -289,7 +299,6 @@ function MesonContent() {
         const { data: newPed, error: pErr } = await supabase.from('pedidos').insert({
           usuario_id: userId,
           isometrico_id: selectedIso?.id,
-          tipo: 'meson',
           estado: 'entregado',
           delivered_at: new Date().toISOString()
         }).select().single()
@@ -298,7 +307,7 @@ function MesonContent() {
       }
 
       for (const item of items) {
-        let aEntregar = isDirectMode ? item.cantidad : (quantitiesToDeliver[item.id] || 0)
+        let aEntregar = quantitiesToDeliver[item.id] || 0
         if (aEntregar <= 0) continue
 
         const existencias = item.materiales ? item.materiales.existencias : item.existencias
@@ -492,30 +501,116 @@ function MesonContent() {
             )}
 
             {isDirectMode && directUser && (
-              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5 animate-in slide-in-from-top-4">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center border border-emerald-500/20">
-                    <User className="text-emerald-500" size={20} />
+              <div className="flex flex-col gap-5 animate-in slide-in-from-top-4 py-2">
+                {/* Tarjeta Maestra de Entrega Directa */}
+                <div 
+                  onClick={() => !selectedIso && isoInputRef.current?.focus()}
+                  className={`relative border-2 transition-all duration-500 rounded-3xl p-6 shadow-2xl ${
+                    selectedIso 
+                      ? 'bg-blue-500/10 border-blue-500/50' 
+                      : 'bg-emerald-500/5 border-emerald-500/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner transition-colors duration-500 ${
+                        selectedIso ? 'bg-blue-500 text-black border-blue-400' : 'bg-black text-emerald-500 border-emerald-500/20'
+                      }`}>
+                        <User size={24} />
+                      </div>
+                      <div>
+                        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${selectedIso ? 'text-blue-400' : 'text-emerald-500'}`}>
+                          {selectedIso ? 'Plano Seleccionado' : 'Entrega Directa'}
+                        </h4>
+                        <p className="text-sm font-black text-white uppercase italic tracking-tight">{directUser.nombre || 'Nuevo Operario'}</p>
+                        <p className="text-[9px] font-mono text-neutral-500">{directUser.rut}</p>
+                      </div>
+                    </div>
+                    {selectedIso && (
+                      <div className="flex flex-col items-end animate-in zoom-in">
+                        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest mb-1">ISO</span>
+                        <span className="text-xl font-black text-white font-mono italic leading-none">{selectedIso.codigo}</span>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Entrega Directa</h4>
-                    <p className="text-xs font-bold text-white uppercase italic">{directUser.nombre || 'Nuevo Operario'}</p>
-                    <p className="text-[8px] font-mono text-neutral-500">{directUser.rut}</p>
-                  </div>
+
+                  {/* Paso 1: Buscador de Isométricos (Integrado en tarjeta si no hay selección) */}
+                  {!selectedIso ? (
+                    <div className="relative group animate-in fade-in slide-in-from-bottom-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Map size={14} className="text-blue-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-blue-500/80 uppercase tracking-widest">Toca aquí para asignar Isométrico</span>
+                      </div>
+                      <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-700 group-focus-within:text-blue-500 transition-colors" />
+                        <input 
+                          ref={isoInputRef}
+                          type="text"
+                          value={directIsoSearch}
+                          onChange={e => setDirectIsoSearch(e.target.value)}
+                          placeholder="Busca el Plano (ej: 3900)..."
+                          className="w-full bg-black/50 border border-neutral-800 rounded-2xl pl-12 pr-4 py-5 text-sm text-white outline-none focus:border-blue-500/50 shadow-inner transition-all"
+                        />
+                      </div>
+                      {foundIsos.length > 0 && (
+                        <div className="absolute top-full left-0 w-full mt-2 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl z-[60] overflow-hidden divide-y divide-neutral-800 animate-in fade-in zoom-in-95">
+                          {foundIsos.map(iso => (
+                            <button key={iso.id} onClick={() => { setSelectedIso(iso); setDirectIsoSearch(iso.codigo); setFoundIsos([]) }} className="w-full text-left p-5 hover:bg-blue-500/10 transition-colors flex justify-between items-center group/item">
+                              <p className="text-xs text-white font-black uppercase italic">{iso.codigo}</p>
+                              <ChevronRight size={16} className="text-neutral-700 group-hover/item:text-blue-500 transition-transform group-hover/item:translate-x-1" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => { setSelectedIso(null); setDirectIsoSearch('') }}
+                      className="w-full py-2 border border-blue-500/20 rounded-xl text-[8px] font-black text-blue-500/50 uppercase tracking-widest hover:bg-blue-500/5 transition-all"
+                    >
+                      Cambiar Isométrico
+                    </button>
+                  )}
                 </div>
-                {!directUser.nombre && (
-                  <div className="space-y-3">
-                    <input 
-                      type="text" value={directUser.nombre} onChange={e => setDirectUser({...directUser, nombre: e.target.value.toUpperCase()})}
-                      placeholder="Nombre Completo" className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-3 text-xs text-white"
-                    />
-                    <div className="flex gap-2">
-                      <div className="bg-neutral-800 px-3 py-3 rounded-lg text-[10px] font-black text-neutral-500 flex items-center">+569</div>
+
+                {/* Paso 2: Buscador de Materiales (Foco principal tras seleccionar ISO) */}
+                {selectedIso && (
+                  <div className="relative animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between mb-3 px-2">
+                      <div className="flex items-center gap-2">
+                        <Plus size={14} className="text-emerald-500" />
+                        <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Añadir Material al Carro</span>
+                      </div>
+                      <span className="text-[8px] font-bold text-neutral-700 uppercase italic">Busca por Ident Code o Nombre</span>
+                    </div>
+                    <div className="relative group">
+                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-700 group-focus-within:text-emerald-500 transition-colors" />
                       <input 
-                        type="tel" value={directUser.telefono.replace('+569', '')} onChange={e => setDirectUser({...directUser, telefono: '+569' + e.target.value})}
-                        placeholder="12345678" className="flex-1 bg-black border border-neutral-800 rounded-lg px-4 py-3 text-xs text-white font-mono"
+                        type="text"
+                        value={itemSearch}
+                        onChange={e => setItemSearch(e.target.value)}
+                        placeholder="Busca el material a entregar..."
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl pl-14 pr-4 py-5 text-sm text-white outline-none focus:border-emerald-500/50 shadow-2xl transition-all"
                       />
                     </div>
+                    {foundItems.length > 0 && (
+                      <div className="absolute top-full left-0 w-full mt-2 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl z-[60] overflow-hidden divide-y divide-neutral-800 animate-in fade-in zoom-in-95">
+                        {foundItems.map(mat => (
+                          <button key={mat.id} onClick={() => addToDirect(mat)} className="w-full text-left p-5 hover:bg-emerald-500/10 transition-colors flex justify-between items-center group/mat">
+                            <div className="flex-1 min-w-0 pr-4">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Ident Code:</span>
+                                <span className="text-sm font-mono font-black text-white tracking-tighter">{mat.ident_code}</span>
+                              </div>
+                              <p className="text-[10px] text-neutral-500 font-bold uppercase italic truncate">{mat.descripcion}</p>
+                            </div>
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover/mat:bg-emerald-500 group-hover/mat:text-black transition-all shadow-lg">
+                              <Plus size={20} />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -546,7 +641,10 @@ function MesonContent() {
                         <span className={`text-lg font-mono font-black italic leading-none ${stockTotal > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{stockTotal}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-mono font-black text-white truncate leading-none mb-1">{material.ident_code}</p>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">IDENT:</span>
+                          <span className="text-xs font-mono font-black text-white tracking-tighter leading-none">{material.ident_code}</span>
+                        </div>
                         <p className="text-[10px] text-neutral-500 font-bold uppercase italic leading-tight truncate">{material.descripcion}</p>
                         <div className="flex gap-4 mt-2">
                           <div className="flex flex-col">
@@ -662,6 +760,7 @@ function MesonContent() {
                             <div className="flex justify-between items-center text-[10px] font-bold">
                               <div className="flex items-center gap-2 truncate mr-4">
                                 <span className={`truncate ${isOutOfStock ? 'text-rose-500' : isInsufficient ? 'text-amber-500' : 'text-neutral-500'}`}>
+                                  <span className="font-mono opacity-60 mr-1">[{item.materiales?.ident_code}]</span>
                                   {item.materiales?.descripcion || 'Material no encontrado'}
                                 </span>
                                 {isOutOfStock ? (
@@ -724,12 +823,12 @@ function MesonContent() {
             <button 
               onClick={handleDespachar}
               disabled={isLoading}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-emerald-900/40 active:scale-95 transition-all uppercase tracking-widest text-xs"
+              className={`w-full ${isDirectMode ? 'bg-cyan-500 hover:bg-cyan-400' : 'bg-emerald-500 hover:bg-emerald-400'} text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 shadow-2xl ${isDirectMode ? 'shadow-cyan-900/40' : 'shadow-emerald-900/40'} active:scale-95 transition-all uppercase tracking-widest text-xs`}
             >
               {isLoading ? <Loader2 className="animate-spin" /> : (
                 <>
                   <Package size={18} />
-                  <span>Confirmar Despacho</span>
+                  <span>{isDirectMode ? 'Confirmar Entrega Directa' : 'Confirmar Despacho'}</span>
                 </>
               )}
             </button>
