@@ -253,17 +253,42 @@ export default function NuevoPedido() {
               </div>
 
               <div className="flex flex-col gap-3 pb-32">
-                {materials.map(m => (
-                  <div key={m.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-mono font-black text-white truncate leading-none mb-1">{m.ident_code}</p>
-                      <p className="text-[9px] text-neutral-500 font-bold uppercase italic leading-tight truncate">{m.descripcion}</p>
+                {materials.map(m => {
+                  const stockTotal = m.existencias?.reduce((acc: number, s: any) => acc + s.cantidad, 0) || 0
+                  const isOutOfStock = stockTotal === 0
+
+                  return (
+                    <div 
+                      key={m.id} 
+                      className={`bg-neutral-900 border rounded-xl p-4 flex items-center gap-4 transition-all ${
+                        isOutOfStock ? 'border-amber-500/30 bg-amber-500/5' : 'border-neutral-800'
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-[10px] font-mono font-black text-white truncate leading-none">{m.ident_code}</p>
+                          {isOutOfStock && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-[7px] font-black uppercase text-black italic animate-pulse">
+                              Sin Stock
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-neutral-500 font-bold uppercase italic leading-tight truncate">{m.descripcion}</p>
+                        <p className={`text-[8px] font-black uppercase mt-2 tracking-widest ${isOutOfStock ? 'text-amber-500/60' : 'text-emerald-500/40'}`}>
+                          Disponible: {stockTotal} {m.unidad}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => addToCart(m)} 
+                        className={`p-3 rounded-lg transition-all active:scale-90 ${
+                          isOutOfStock ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'
+                        }`}
+                      >
+                        <Plus size={18} />
+                      </button>
                     </div>
-                    <button onClick={() => addToCart(m)} className="p-3 bg-emerald-500/10 rounded-lg text-emerald-500">
-                      <Plus size={18} />
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
