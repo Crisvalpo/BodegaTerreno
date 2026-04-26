@@ -62,6 +62,33 @@ export default function MesonPage() {
   const [allPendientes, setAllPendientes] = useState<Pedido[]>([])
   const [isScannerOpen, setIsScannerOpen] = useState(false)
   const [rutSuggestions, setRutSuggestions] = useState<any[]>([])
+  const [observaciones, setObservaciones] = useState('')
+
+  const finalizarConFaltantes = async () => {
+    if (!pedidoSeleccionado) return
+    if (!observaciones.trim()) return toast.error('Debes indicar el motivo del cierre (ej: Sin Stock)')
+    
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ 
+          estado: 'entregado', 
+          delivered_at: new Date().toISOString(),
+          observaciones: observaciones.trim()
+        })
+        .eq('id', pedidoSeleccionado.id)
+      
+      if (error) throw error
+      toast.success('Pedido cerrado administrativamente')
+      setAllPendientes(prev => prev.filter(p => p.id !== pedidoSeleccionado.id))
+      resetAll()
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (orderId) {
@@ -540,8 +567,41 @@ export default function MesonPage() {
                     </div>
                   </div>
                 )
-              })}
             </div>
+
+            {/* Sección de Cierre por Falta de Stock */}
+            {!isDirectMode && pedidoSeleccionado && (
+              <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-5 flex flex-col gap-4 mt-4 mb-24 animate-in fade-in slide-in-from-bottom-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center text-rose-500">
+                    <AlertCircle size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black text-white uppercase italic tracking-widest leading-none">Cierre por Stock</h4>
+                    <p className="text-[8px] text-rose-500/60 font-bold uppercase mt-1">Acción Administrativa</p>
+                  </div>
+                </div>
+                
+                <p className="text-[9px] text-neutral-500 font-medium leading-relaxed">
+                  Usa esta opción si confirmas que NO hay más stock físico. El pedido se cerrará definitivamente y se guardará este motivo.
+                </p>
+
+                <textarea 
+                  value={observaciones}
+                  onChange={e => setObservaciones(e.target.value)}
+                  placeholder="Escribe el motivo del cierre (ej: Sin stock físico en estantería)..."
+                  className="bg-black border border-neutral-800 rounded-xl p-4 text-xs text-rose-500 outline-none focus:border-rose-500/50 min-h-[100px] shadow-inner placeholder:text-neutral-800"
+                />
+
+                <button 
+                  onClick={finalizarConFaltantes}
+                  disabled={isLoading || !observaciones.trim()}
+                  className="w-full bg-rose-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-20 shadow-lg shadow-rose-900/40"
+                >
+                  {isLoading ? <Loader2 size={16} className="animate-spin" /> : 'Finalizar Pedido con Notas'}
+                </button>
+              </div>
+            )}
           )}
           </>
           ) : (

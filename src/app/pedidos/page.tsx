@@ -208,6 +208,18 @@ export default function MisPedidos() {
                       </span>
                     )}
                   </div>
+
+                  {p.observaciones && (
+                    <div className="mt-2 p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl animate-in fade-in zoom-in-95">
+                      <p className="text-[8px] font-black text-rose-500 uppercase italic mb-1 flex items-center gap-2">
+                        <AlertCircle size={10} /> Nota de Bodega
+                      </p>
+                      <p className="text-[10px] text-neutral-400 italic font-medium leading-relaxed">
+                        "{p.observaciones}"
+                      </p>
+                    </div>
+                  )}
+
                   {(user?.rol === 'admin' || user?.rol === 'bodeguero') && p.estado !== 'entregado' && (
                     <Link 
                       href={`/meson?id=${p.id}`}
