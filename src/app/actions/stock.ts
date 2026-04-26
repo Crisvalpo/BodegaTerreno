@@ -29,7 +29,8 @@ export async function getStockAction() {
 
 export async function searchOrdersByRutAction(rut: string) {
   try {
-    const pureRut = rut.split('-')[0]
+    const cleanRut = rut.replace(/[\.-]/g, '').trim()
+    const pureRut = cleanRut.length > 1 ? cleanRut.slice(0, -1) : cleanRut
     
     // 1. Buscar pedidos
     const { data: pedidos, error: pError } = await supabase
@@ -46,7 +47,7 @@ export async function searchOrdersByRutAction(rut: string) {
           )
         )
       `)
-      .or(`rut.eq.${rut},rut.eq.${pureRut}`, { foreignTable: 'usuarios' })
+      .or(`rut.eq.${rut},rut.ilike.${cleanRut}%,rut.ilike.${pureRut}%`, { foreignTable: 'usuarios' })
       .eq('estado', 'pendiente')
       .order('created_at', { ascending: true })
 
@@ -58,7 +59,7 @@ export async function searchOrdersByRutAction(rut: string) {
       const { data: userData } = await supabase
         .from('usuarios')
         .select('*')
-        .or(`rut.eq.${rut},rut.eq.${pureRut}`)
+        .or(`rut.eq.${rut},rut.ilike.${cleanRut}%,rut.ilike.${pureRut}%`)
         .maybeSingle()
       user = userData
     }

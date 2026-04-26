@@ -40,6 +40,7 @@ export default function MesonPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null)
+  const [quantitiesToDeliver, setQuantitiesToDeliver] = useState<Record<string, number>>({})
   
   // MODO ENTREGA DIRECTA
   const [isDirectMode, setIsDirectMode] = useState(false)
@@ -58,6 +59,38 @@ export default function MesonPage() {
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
+
+  // Inicializar cantidades a entregar según stock disponible
+  useEffect(() => {
+    if (pedidoSeleccionado) {
+      const initial: Record<string, number> = {}
+      pedidoSeleccionado.pedido_items.forEach(item => {
+        const totalDisp = item.materiales.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+        // Sugerir el máximo posible (el menor entre lo solicitado y lo disponible)
+        initial[item.id] = Math.min(item.cantidad_solicitada, totalDisp)
+      })
+      setQuantitiesToDeliver(initial)
+    }
+  }, [pedidoSeleccionado])
+
+  // Sugerencias de RUT
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      const clean = rutBusqueda.replace(/[\.-]/g, '').trim()
+      if (clean.length < 3) {
+        setRutSuggestions([])
+        return
+      }
+      const { data } = await supabase
+        .from('usuarios')
+        .select('id, rut, nombre')
+        .or(`rut.ilike.${clean}%,nombre.ilike.%${clean}%`)
+        .limit(5)
+      setRutSuggestions(data || [])
+    }
+    const timer = setTimeout(fetchSuggestions, 300)
+    return () => clearTimeout(timer)
+  }, [rutBusqueda])
 
   // Utilidad para extraer el RUT de un escaneo (soporta texto plano o URL de Cédula)
   const parseRut = (input: string): string => {
@@ -190,40 +223,27 @@ export default function MesonPage() {
   const procesarDespacho = async (pedidoInfo: any, items: any[]) => {
     if (items.length === 0) return toast.error('No hay items para despachar')
     
-    // Validar stock antes de procesar nada
-    for (const item of items) {
-      let req = isDirectMode ? item.cantidad : item.cantidad_solicitada
-      const exis = item.materiales ? item.materiales.existencias : item.existencias
-      const totalDisp = (exis || []).reduce((acc: any, curr: any) => acc + curr.cantidad, 0)
-      
-      if (req > totalDisp) {
-        toast.error(`ERROR: Stock insuficiente para ${item.ident_code || item.materiales?.ident_code}`, {
-          description: `Disponibles: ${totalDisp} unidades.`
-        })
-        return
-      }
-    }
+    // Validar que hay algo que entregar
+    const totalAEntregar = items.reduce((acc, item) => {
+      const q = isDirectMode ? item.cantidad : (quantitiesToDeliver[item.id] || 0)
+      return acc + q
+    }, 0)
+
+    if (totalAEntregar <= 0) return toast.error('No has definido cantidades para entregar')
 
     setIsLoading(true)
     try {
-      // 1. Identificar usuario
       let currentUserId = isDirectMode ? directUser.id : pedidoInfo?.usuarios?.id
       
       if (isDirectMode && !currentUserId) {
-        // Crear usuario nuevo primero si no existe
-        const { data: newUser, error: uError } = await supabase
-          .from('usuarios')
-          .insert({ 
-            rut: directUser.rut, 
-            nombre: directUser.nombre,
-            telefono: directUser.telefono 
-          })
-          .select().single()
+        const { data: newUser, error: uError } = await supabase.from('usuarios').insert({ 
+          rut: directUser.rut, nombre: directUser.nombre, telefono: directUser.telefono 
+        }).select().single()
         if (uError) throw uError
         currentUserId = newUser.id
       }
 
-      // 2. Agrupar items por Isométrico
+      // Agrupar items por Isométrico
       const itemsPorIso: any = {}
       items.forEach(item => {
         const isoId = isDirectMode ? item.iso?.id : (pedidoInfo?.isometrico_id || 'SIN_ISO')
@@ -233,51 +253,64 @@ export default function MesonPage() {
 
       for (const [isoId, isoItems] of Object.entries(itemsPorIso)) {
         let currentIsoId = isoId === 'SIN_ISO' ? null : isoId
-        
-        // Crear un pedido por cada grupo de isométrico
         let currentPedidoId = pedidoInfo?.id
+
         if (isDirectMode) {
-          const { data: newPedido, error: pError } = await supabase
-            .from('pedidos')
-            .insert({
-              usuario_id: currentUserId,
-              isometrico_id: currentIsoId,
-              tipo: 'meson',
-              estado: 'entregado',
-              delivered_at: new Date().toISOString()
-            })
-            .select().single()
+          const { data: newPedido, error: pError } = await supabase.from('pedidos').insert({
+            usuario_id: currentUserId, isometrico_id: currentIsoId, tipo: 'meson', estado: 'entregado', delivered_at: new Date().toISOString()
+          }).select().single()
           if (pError) throw pError
           currentPedidoId = newPedido.id
         }
 
         for (const item of (isoItems as any[])) {
-          let cantidadPendiente = isDirectMode ? item.cantidad : item.cantidad_solicitada
+          let aEntregar = isDirectMode ? item.cantidad : (quantitiesToDeliver[item.id] || 0)
+          if (aEntregar <= 0) continue
+
           const existencias = item.materiales ? item.materiales.existencias : item.existencias
           const materialId = item.materiales ? item.materiales.id : item.id
-
           const sortedStock = [...(existencias || [])].sort((a, b) => b.cantidad - a.cantidad)
 
           for (const stock of sortedStock) {
-            if (cantidadPendiente <= 0) break
-            const aDescontar = Math.min(cantidadPendiente, stock.cantidad)
+            if (aEntregar <= 0) break
+            const aDescontar = Math.min(aEntregar, stock.cantidad)
+            
+            // 1. Descontar de existencias
             await supabase.from('existencias').update({ cantidad: stock.cantidad - aDescontar }).eq('id', stock.id)
+            
+            // 2. Registrar movimiento
             await supabase.from('movimientos').insert({
               material_id: materialId,
               ubicacion_id: stock.ubicacion_id,
               tipo: 'OUT',
               cantidad: aDescontar,
               referencia_id: currentPedidoId,
-              usuario_id: currentUserId,
-              timestamp: new Date().toISOString()
+              usuario_id: currentUserId
             })
-            cantidadPendiente -= aDescontar
+            
+            // 3. Si no es directo, actualizar el item del pedido
+            if (!isDirectMode) {
+              const { data: currentItem } = await supabase.from('pedido_items').select('cantidad_entregada').eq('id', item.id).single()
+              const nuevaCantidad = (currentItem?.cantidad_entregada || 0) + aDescontar
+              await supabase.from('pedido_items').update({ cantidad_entregada: nuevaCantidad }).eq('id', item.id)
+            }
+
+            aEntregar -= aDescontar
           }
         }
       }
 
+      // Cerrar pedido si todo está completo
       if (!isDirectMode && pedidoSeleccionado) {
-        await supabase.from('pedidos').update({ estado: 'entregado', delivered_at: new Date().toISOString() }).eq('id', pedidoSeleccionado.id)
+        const { data: updatedItems } = await supabase.from('pedido_items').select('cantidad_solicitada, cantidad_entregada').eq('pedido_id', pedidoSeleccionado.id)
+        const todoEntregado = updatedItems?.every(i => Number(i.cantidad_entregada) >= Number(i.cantidad_solicitada))
+        
+        if (todoEntregado) {
+          await supabase.from('pedidos').update({ estado: 'entregado', delivered_at: new Date().toISOString() }).eq('id', pedidoSeleccionado.id)
+        } else {
+          await supabase.from('pedidos').update({ estado: 'picking' }).eq('id', pedidoSeleccionado.id)
+          toast('Entrega parcial registrada', { description: 'El pedido permanecerá abierto para los items faltantes.' })
+        }
       }
 
       toast.success('Despacho completado con éxito')
@@ -357,15 +390,18 @@ export default function MesonPage() {
               </div>
 
               {rutSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 w-full mt-2 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl z-[60] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="absolute top-full left-0 w-full mt-2 bg-neutral-900 border border-neutral-800 rounded-3xl shadow-2xl z-50 overflow-hidden divide-y divide-white/5 animate-in fade-in zoom-in-95">
                   {rutSuggestions.map(u => (
                     <button 
                       key={u.id} 
-                      onClick={() => buscarPedidos(u.rut)}
-                      className="w-full text-left p-4 hover:bg-white/5 border-b border-white/5 last:border-0 group flex flex-col"
+                      onClick={() => {
+                        setRutBusqueda(u.rut);
+                        buscarPedidos(u.rut);
+                      }}
+                      className="w-full text-left p-5 hover:bg-blue-600/10 border-b border-white/5 last:border-0 group flex flex-col gap-1 transition-all"
                     >
-                      <span className="text-white font-black">{u.rut}</span>
-                      <span className="text-xs text-neutral-500 group-hover:text-blue-400 transition-colors">{u.nombre}</span>
+                      <span className="text-white font-black text-lg group-hover:text-blue-400 transition-colors">{u.rut}</span>
+                      <span className="text-xs text-neutral-500 font-bold uppercase tracking-widest">{u.nombre}</span>
                     </button>
                   ))}
                 </div>
@@ -555,9 +591,39 @@ export default function MesonPage() {
                         <p className="text-2xl font-black text-white leading-none">{item.materiales.ident_code}</p>
                         <p className="text-xs text-neutral-500 mt-2 leading-relaxed">{item.materiales.descripcion}</p>
                       </div>
-                      <div className="bg-blue-600 px-5 py-3 rounded-2xl text-center shadow-lg shadow-blue-900/20">
-                        <p className="text-[10px] font-black text-blue-100 uppercase mb-1">Solicitado</p>
-                        <p className="text-2xl font-black text-white leading-none">{item.cantidad_solicitada}</p>
+                      <div className="flex gap-4 items-center">
+                        <div className="bg-neutral-800 px-4 py-2 rounded-2xl text-center">
+                          <p className="text-[8px] font-black text-neutral-500 uppercase mb-1">Solicitado</p>
+                          <p className="text-xl font-black text-white leading-none">{item.cantidad_solicitada}</p>
+                        </div>
+
+                        {(item.cantidad_entregada || 0) > 0 && (
+                          <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-2xl text-center">
+                            <p className="text-[8px] font-black text-emerald-500 uppercase mb-1">Entregado</p>
+                            <p className="text-xl font-black text-emerald-500 leading-none">{item.cantidad_entregada}</p>
+                          </div>
+                        )}
+
+                        <div className="bg-blue-600 px-4 py-2 rounded-2xl text-center shadow-lg shadow-blue-900/20 border border-blue-400/30">
+                          <p className="text-[8px] font-black text-blue-100 uppercase mb-1">A Entregar</p>
+                          <input 
+                            type="number"
+                            value={quantitiesToDeliver[item.id] || 0}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0
+                              const totalDisp = item.materiales.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+                              const faltante = item.cantidad_solicitada - (item.cantidad_entregada || 0)
+                              const maxPosible = Math.min(faltante, totalDisp)
+                              
+                              if (val > maxPosible) {
+                                toast.warning(`Máximo sugerido: ${maxPosible}`, { description: 'Excederías lo solicitado o el stock disponible.' })
+                              }
+                              
+                              setQuantitiesToDeliver(prev => ({ ...prev, [item.id]: val }))
+                            }}
+                            className="w-12 bg-transparent text-center text-xl font-black text-white outline-none"
+                          />
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -571,18 +637,39 @@ export default function MesonPage() {
                         ))
                       ) : (
                         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
-                          <AlertCircle size={14} />
-                          <span className="text-xs font-black italic uppercase">Sin Stock en Bodega</span>
+                           <AlertCircle size={14} />
+                           <span className="text-xs font-black italic uppercase">Sin Stock en Bodega</span>
                         </div>
                       )}
+                      
+                      {/* Badge de estado del item */}
+                      {(() => {
+                        const q = quantitiesToDeliver[item.id] || 0
+                        const totalDisp = item.materiales.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+                        const faltante = item.cantidad_solicitada - (item.cantidad_entregada || 0)
+                        
+                        if (faltante <= 0) return <span className="ml-auto text-[10px] font-black text-emerald-500 uppercase">Completado</span>
+                        if (totalDisp <= 0) return <span className="ml-auto text-[10px] font-black text-red-500 uppercase">Agotado</span>
+                        if (totalDisp < faltante) return <span className="ml-auto text-[10px] font-black text-amber-500 uppercase">Stock Parcial</span>
+                        return <span className="ml-auto text-[10px] font-black text-blue-500 uppercase">Listo</span>
+                      })()}
                     </div>
                   </div>
                 ))}
               </div>
 
               <div className="p-6 bg-neutral-900 border-t border-white/5">
-                <button onClick={() => procesarDespacho(pedidoSeleccionado, pedidoSeleccionado.pedido_items)} disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl text-xl shadow-xl shadow-blue-500/20 transition-all active:scale-[0.98]">
-                  {isLoading ? <Loader2 className="animate-spin mx-auto" /> : 'CONFIRMAR DESPACHO'}
+                <button 
+                  onClick={() => procesarDespacho(pedidoSeleccionado, pedidoSeleccionado.pedido_items)} 
+                  disabled={isLoading || Object.values(quantitiesToDeliver).reduce((a,b)=>a+b,0) <= 0} 
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl text-xl shadow-xl shadow-blue-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                  {isLoading ? <Loader2 className="animate-spin" /> : (
+                    <>
+                      <CheckCircle2 size={24} />
+                      CONFIRMAR DESPACHO
+                    </>
+                  )}
                 </button>
               </div>
             </div>
