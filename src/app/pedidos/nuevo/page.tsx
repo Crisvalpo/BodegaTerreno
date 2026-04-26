@@ -38,6 +38,16 @@ export default function NuevoPedido() {
   const [searchQuery, setSearchQuery] = useState('')
   const [cart, setCart] = useState<{material: Material, cantidad: number}[]>([])
 
+  // Recuperar sesión automáticamente
+  useEffect(() => {
+    const storedUser = localStorage.getItem('bodega_user')
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser)
+      setUsuario(parsed)
+      setStep(2)
+    }
+  }, [])
+
   // Normalización de RUT
   const handleBlur = () => {
     if (rut.length > 5) setRut(formatRut(rut))
