@@ -162,8 +162,16 @@ export default function MesonPage() {
     if (error) toast.error('Error al iniciar picking')
     else {
       toast.success('Pedido en preparación')
-      // Actualizar lista local
       setAllPendientes(prev => prev.map(p => p.id === pedidoId ? { ...p, estado: 'picking' } : p))
+    }
+  }
+
+  const finalizarPicking = async (pedidoId: string) => {
+    const { error } = await supabase.from('pedidos').update({ estado: 'listo' }).eq('id', pedidoId)
+    if (error) toast.error('Error al marcar como listo')
+    else {
+      toast.success('Pedido listo para retiro')
+      setAllPendientes(prev => prev.map(p => p.id === pedidoId ? { ...p, estado: 'listo' } : p))
     }
   }
 
@@ -450,41 +458,54 @@ export default function MesonPage() {
                   <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-col gap-4">
                     <div className="flex justify-between items-start">
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic mb-1">
-                          {p.estado === 'picking' ? '🔵 EN PREPARACIÓN' : '🟡 PENDIENTE'}
-                        </span>
-                        <h4 className="text-sm font-black text-white leading-none uppercase italic">{p.usuarios.nombre}</h4>
-                        <p className="text-[10px] font-mono text-neutral-500 mt-1">{p.isometricos.codigo}</p>
-                      </div>
-                      <span className="text-[8px] font-bold text-neutral-700 uppercase">{new Date(p.created_at).toLocaleTimeString()}</span>
-                    </div>
-                    
                     <div className="flex flex-col gap-2 bg-black/40 rounded-xl p-3">
-                      {p.pedido_items.slice(0, 3).map(item => (
-                        <div key={item.id} className="flex justify-between items-center text-[10px] font-bold">
-                          <span className="text-neutral-500 truncate mr-4">{item.materiales.descripcion}</span>
-                          <span className="text-white shrink-0">{item.cantidad_solicitada} {item.materiales.unidad}</span>
-                        </div>
-                      ))}
-                      {p.pedido_items.length > 3 && (
-                        <span className="text-[8px] text-neutral-600 italic">+{p.pedido_items.length - 3} items más...</span>
+                      {p.pedido_items.slice(0, 5).map(item => {
+                        // Consolidar ubicaciones
+                        const locs = item.materiales.existencias
+                          ?.filter((ex: any) => ex.cantidad > 0)
+                          .map((ex: any) => `${ex.ubicaciones.zona}-${ex.ubicaciones.rack}${ex.ubicaciones.nivel}`)
+                          .join(' | ') || 'Sin ubicación'
+
+                        return (
+                          <div key={item.id} className="flex flex-col gap-0.5 border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                            <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-neutral-500 truncate mr-4">{item.materiales.descripcion}</span>
+                              <span className="text-white shrink-0">{item.cantidad_solicitada} {item.materiales.unidad}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[8px] font-black text-amber-500/60 uppercase italic">
+                              <MapPin size={8} /> {locs}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {p.pedido_items.length > 5 && (
+                        <span className="text-[8px] text-neutral-600 italic">+{p.pedido_items.length - 5} items más...</span>
                       )}
                     </div>
 
                     <div className="flex gap-2 pt-2">
-                      {p.estado === 'pendiente' ? (
+                      {p.estado === 'pendiente' && (
                         <button 
                           onClick={() => startPicking(p.id)}
                           className="flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/20"
                         >
                           Comenzar Picking
                         </button>
-                      ) : (
+                      )}
+                      {p.estado === 'picking' && (
+                        <button 
+                          onClick={() => finalizarPicking(p.id)}
+                          className="flex-1 bg-amber-500 text-black font-black py-3 rounded-xl uppercase text-[9px] tracking-widest shadow-lg shadow-amber-500/20"
+                        >
+                          Marcar como Listo
+                        </button>
+                      )}
+                      {(p.estado === 'picking' || p.estado === 'listo') && (
                         <button 
                           onClick={() => handleSelectPedido(p)}
                           className="flex-1 bg-emerald-500 text-black font-black py-3 rounded-xl uppercase text-[9px] tracking-widest shadow-lg shadow-emerald-500/20"
                         >
-                          Entregar Material
+                          {p.estado === 'listo' ? 'Entregar Ahora' : 'Ir al Despacho'}
                         </button>
                       )}
                     </div>

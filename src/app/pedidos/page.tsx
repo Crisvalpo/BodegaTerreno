@@ -46,6 +46,7 @@ export default function MisPedidos() {
     switch (status) {
       case 'pendiente': return { label: 'En Cola', color: 'text-amber-500', bg: 'bg-amber-500/10', icon: <Clock size={14} /> }
       case 'picking': return { label: 'En Preparación', color: 'text-blue-500', bg: 'bg-blue-500/10', icon: <Loader2 size={14} className="animate-spin" /> }
+      case 'listo': return { label: 'Listo para Retiro', color: 'text-emerald-400', bg: 'bg-emerald-500/20', icon: <CheckCircle2 size={14} className="animate-pulse" /> }
       case 'entregado': return { label: 'Entregado', color: 'text-emerald-500', bg: 'bg-emerald-500/10', icon: <CheckCircle2 size={14} /> }
       default: return { label: status, color: 'text-neutral-500', bg: 'bg-neutral-500/10', icon: <Package size={14} /> }
     }
