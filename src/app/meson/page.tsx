@@ -276,8 +276,8 @@ export default function MesonPage() {
         }
       }
 
-      if (!isDirectMode) {
-        await supabase.from('pedidos').update({ estado: 'entregado', delivered_at: new Date().toISOString() }).eq('id', pedidoId)
+      if (!isDirectMode && pedidoSeleccionado) {
+        await supabase.from('pedidos').update({ estado: 'entregado', delivered_at: new Date().toISOString() }).eq('id', pedidoSeleccionado.id)
       }
 
       toast.success('Despacho completado con éxito')
