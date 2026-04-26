@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { Package, ShieldCheck, User as UserIcon, Loader2, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
