@@ -30,8 +30,8 @@ export default function MisPedidos() {
         .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(descripcion, unidad))')
         .order('created_at', { ascending: false })
       
-      // Si no es admin, solo ve los suyos
-      if (currentUser.rol !== 'admin') {
+      // Si no es admin ni bodeguero, solo ve los suyos
+      if (currentUser.rol !== 'admin' && currentUser.rol !== 'bodeguero') {
         query = query.eq('usuario_id', currentUser.id)
       }
 
@@ -71,7 +71,7 @@ export default function MisPedidos() {
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1 italic">Gestión de Campo</span>
             <h1 className="text-sm font-black text-white uppercase italic leading-none">
-              {user?.rol === 'admin' ? 'Gestión Global' : 'Mis Pedidos'}
+              {user?.rol === 'admin' || user?.rol === 'bodeguero' ? 'Gestión Global' : 'Mis Pedidos'}
             </h1>
           </div>
           <Link 

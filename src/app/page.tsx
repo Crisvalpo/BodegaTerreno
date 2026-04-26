@@ -157,8 +157,8 @@ export default function Home() {
           {/* MIS PEDIDOS (PÚBLICO) */}
           <MenuCard 
             href="/pedidos"
-            title="Mis Pedidos"
-            desc="Seguimiento y estados de avance."
+            title={isAuthorized || user.rol === 'bodeguero' ? "Gestión de Pedidos" : "Mis Pedidos"}
+            desc={isAuthorized || user.rol === 'bodeguero' ? "Cola de trabajo y preparación." : "Seguimiento y estados de avance."}
             icon={<ClipboardList size={22} />}
             accent="blue"
             badges={[
