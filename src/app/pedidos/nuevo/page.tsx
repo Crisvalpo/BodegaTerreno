@@ -38,6 +38,7 @@ export default function NuevoPedido() {
   const [searchQuery, setSearchQuery] = useState('')
   const [cart, setCart] = useState<{material: Material, cantidad: number, isometrico: any}[]>([])
   const [localQtys, setLocalQtys] = useState<Record<string, number>>({})
+  const [historicoConsumo, setHistoricoConsumo] = useState<Record<string, number>>({})
 
   // Recuperar sesión automáticamente
   useEffect(() => {
@@ -54,7 +55,7 @@ export default function NuevoPedido() {
     if (rut.length > 5) setRut(formatRut(rut))
   }
 
-  // Carga de materiales
+  // Carga de materiales y sus consumos históricos
   useEffect(() => {
     const fetchMaterials = async () => {
       if (searchQuery.length < 3) {
@@ -72,10 +73,25 @@ export default function NuevoPedido() {
         data.forEach(m => { qtys[m.id] = 1 })
         setLocalQtys(prev => ({ ...qtys, ...prev }))
         setMaterials(data)
+
+        // Cargar consumos históricos para este Isométrico
+        if (isometrico) {
+          const { data: consumos } = await supabase
+            .from('pedido_items')
+            .select('material_id, cantidad_entregada')
+            .eq('isometrico_id', isometrico.id)
+            .in('material_id', data.map(m => m.id))
+          
+          const history: Record<string, number> = {}
+          consumos?.forEach(c => {
+            history[c.material_id] = (history[c.material_id] || 0) + Number(c.cantidad_entregada)
+          })
+          setHistoricoConsumo(prev => ({ ...prev, ...history }))
+        }
       }
     }
     if (step === 3) fetchMaterials()
-  }, [searchQuery, step])
+  }, [searchQuery, step, isometrico])
 
   // Lógica de Usuario
   const handleUsuario = async () => {
@@ -307,9 +323,16 @@ export default function NuevoPedido() {
                           )}
                         </div>
                         <p className="text-[9px] text-neutral-500 font-bold uppercase italic leading-tight truncate">{m.descripcion}</p>
-                        <p className={`text-[8px] font-black uppercase mt-2 tracking-widest ${isOutOfStock ? 'text-amber-500/60' : 'text-emerald-500/40'}`}>
-                          Disponible: {stockTotal} {m.unidad}
-                        </p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <p className={`text-[8px] font-black uppercase tracking-widest ${isOutOfStock ? 'text-amber-500/60' : 'text-emerald-500/40'}`}>
+                            Disponible: {stockTotal} {m.unidad}
+                          </p>
+                          {historicoConsumo[m.id] > 0 && (
+                            <span className="text-[7px] font-black text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 uppercase italic">
+                              Histórico: {historicoConsumo[m.id]} entregados
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex items-center bg-black border border-neutral-800 rounded-lg overflow-hidden h-10">

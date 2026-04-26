@@ -264,19 +264,20 @@ export default function MesonPage() {
             <X size={20} className="text-neutral-500" />
           </Link>
           <div className="flex flex-col items-center text-center">
-          <div className="flex gap-1 bg-neutral-900 p-1 rounded-xl">
-            <button 
-              onClick={() => setActiveTab('entrega')}
-              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'entrega' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-neutral-500'}`}
-            >
-              Entrega
-            </button>
-            <button 
-              onClick={() => setActiveTab('pendientes')}
-              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'pendientes' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-neutral-500'}`}
-            >
-              Pendientes ({allPendientes.length})
-            </button>
+            <div className="flex gap-1 bg-neutral-900 p-1 rounded-xl">
+              <button 
+                onClick={() => setActiveTab('entrega')}
+                className={`flex-1 py-2 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'entrega' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-neutral-500'}`}
+              >
+                Entrega
+              </button>
+              <button 
+                onClick={() => setActiveTab('pendientes')}
+                className={`flex-1 py-2 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'pendientes' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-neutral-500'}`}
+              >
+                Pendientes ({allPendientes.length})
+              </button>
+            </div>
           </div>
           <button 
             onClick={() => setIsScannerOpen(true)}
