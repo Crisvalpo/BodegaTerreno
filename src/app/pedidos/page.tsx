@@ -86,48 +86,93 @@ export default function MisPedidos() {
           ) : (
             pedidos.map(p => {
               const status = getStatusInfo(p.estado)
+              
+              // Cálculo de Progreso
+              const totalReq = p.pedido_items.reduce((acc: number, i: any) => acc + Number(i.cantidad_solicitada), 0)
+              const totalGot = p.pedido_items.reduce((acc: number, i: any) => acc + Number(i.cantidad_entregada), 0)
+              const progress = Math.round((totalGot / (totalReq || 1)) * 100)
+
+              // Estados para el Stepper
+              const steps = ['pendiente', 'picking', 'listo', 'entregado']
+              const currentStepIndex = steps.indexOf(p.estado)
+
               return (
-                <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4">
+                <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-4">
+                  {/* Header y Estado */}
                   <div className="flex justify-between items-start">
-                    <div className="flex flex-col">
-                      <div className={`flex items-center gap-2 px-2 py-1 rounded-full ${status.bg} ${status.color} w-fit mb-2`}>
+                    <div className="flex flex-col gap-1">
+                      <div className={`flex items-center gap-2 px-2 py-1 rounded-full ${status.bg} ${status.color} w-fit mb-1`}>
                         {status.icon}
                         <span className="text-[8px] font-black uppercase tracking-widest">{status.label}</span>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <h4 className="text-xs font-black text-white leading-none uppercase italic">Isométrico: {p.isometricos?.codigo || 'Varios'}</h4>
-                        {user?.rol === 'admin' && (
-                          <span className="text-[9px] font-bold text-emerald-500 uppercase">Solicitante: {p.usuarios?.nombre}</span>
-                        )}
-                      </div>
-                      <p className="text-[8px] text-neutral-500 font-bold uppercase tracking-widest mt-1">
-                        {new Date(p.created_at).toLocaleDateString()} · {new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <h4 className="text-xs font-black text-white leading-none uppercase italic">Plano: {p.isometricos?.codigo || 'Varios'}</h4>
+                      {user?.rol === 'admin' && (
+                        <span className="text-[9px] font-bold text-emerald-500 uppercase">Por: {p.usuarios?.nombre}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[14px] font-black text-white italic">{progress}%</span>
+                      <span className="text-[7px] font-black text-neutral-600 uppercase tracking-widest">Avance</span>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 bg-black/40 rounded-xl p-3 border border-neutral-800/50">
-                    {p.pedido_items.map((item: any) => (
-                      <div key={item.id} className="flex justify-between items-center text-[10px] font-bold">
-                        <div className="flex flex-col">
-                          <span className="text-white uppercase truncate max-w-[180px]">{item.materiales?.descripcion || 'Material no encontrado'}</span>
-                          <span className="text-[8px] text-neutral-600 font-mono">Solicitado: {item.cantidad_solicitada} {item.materiales?.unidad || ''}</span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className={`text-[10px] ${item.cantidad_entregada >= item.cantidad_solicitada ? 'text-emerald-500' : 'text-neutral-500'}`}>
-                            {item.cantidad_entregada} Entregado
-                          </span>
-                        </div>
+                  {/* Barra de Progreso */}
+                  <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-500 transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(16,185,129,0.5)]" 
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+
+                  {/* Stepper Visual */}
+                  <div className="flex justify-between items-center px-2 py-1">
+                    {steps.map((s, idx) => (
+                      <div key={s} className="flex flex-col items-center gap-1.5">
+                        <div className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                          idx <= currentStepIndex ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]' : 'bg-neutral-800'
+                        }`} />
+                        <span className={`text-[6px] font-black uppercase tracking-tighter ${
+                          idx <= currentStepIndex ? 'text-neutral-400' : 'text-neutral-700'
+                        }`}>
+                          {s === 'pendiente' ? 'Cola' : s === 'picking' ? 'Prep' : s === 'listo' ? 'Listo' : 'Fin'}
+                        </span>
                       </div>
                     ))}
                   </div>
 
-                  {p.estado === 'entregado' && (
-                    <div className="flex items-center gap-2 text-[9px] font-black text-emerald-500/60 uppercase italic mt-1">
-                      <CheckCircle2 size={12} />
-                      Pedido completado y retirado
-                    </div>
-                  )}
+                  {/* Detalle de Items */}
+                  <div className="flex flex-col gap-2 bg-black/40 rounded-xl p-3 border border-neutral-800/50">
+                    {p.pedido_items.map((item: any) => {
+                      const isComplete = Number(item.cantidad_entregada) >= Number(item.cantidad_solicitada)
+                      return (
+                        <div key={item.id} className="flex justify-between items-center text-[10px] font-bold group">
+                          <div className="flex flex-col">
+                            <span className={`text-white uppercase truncate max-w-[180px] transition-colors ${isComplete ? 'text-neutral-500' : ''}`}>
+                              {item.materiales?.descripcion || 'Material no encontrado'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[8px] text-neutral-600 font-mono">Ped: {item.cantidad_solicitada}</span>
+                              <span className={`text-[8px] font-mono ${isComplete ? 'text-emerald-500' : 'text-amber-500/50'}`}>
+                                Ent: {item.cantidad_entregada}
+                              </span>
+                            </div>
+                          </div>
+                          {isComplete && <CheckCircle2 size={12} className="text-emerald-500/40" />}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex justify-between items-center px-1">
+                    <p className="text-[7px] text-neutral-600 font-bold uppercase tracking-widest">
+                      {new Date(p.created_at).toLocaleDateString()} · {new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    {p.estado === 'entregado' && (
+                      <span className="text-[7px] font-black text-emerald-500/40 uppercase italic flex items-center gap-1">
+                        <CheckCircle2 size={10} /> Completado
+                      </span>
+                    )}
+                  </div>
                 </div>
               )
             })

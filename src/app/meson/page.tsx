@@ -102,7 +102,7 @@ export default function MesonPage() {
       const { data } = await supabase
         .from('pedidos')
         .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(*, existencias(*, ubicaciones(*))))')
-        .in('estado', ['pendiente', 'picking'])
+        .in('estado', ['pendiente', 'picking', 'listo'])
         .order('created_at', { ascending: false })
       setAllPendientes(data as any || [])
     }
@@ -474,15 +474,27 @@ export default function MesonPage() {
                           ?.filter((ex: any) => ex.cantidad > 0)
                           .map((ex: any) => `${ex.ubicaciones.zona}-${ex.ubicaciones.rack}${ex.ubicaciones.nivel}`)
                           .join(' | ') || 'Sin ubicación'
+                        
+                        const stockTotal = item.materiales?.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+                        const isOutOfStock = stockTotal <= 0
 
                         return (
                           <div key={item.id} className="flex flex-col gap-0.5 border-b border-white/5 pb-2 last:border-0 last:pb-0">
                             <div className="flex justify-between items-center text-[10px] font-bold">
-                              <span className="text-neutral-500 truncate mr-4">{item.materiales?.descripcion || 'Material no encontrado'}</span>
-                              <span className="text-white shrink-0">{item.cantidad_solicitada} {item.materiales?.unidad || ''}</span>
+                              <div className="flex items-center gap-2 truncate mr-4">
+                                <span className={`truncate ${isOutOfStock ? 'text-rose-500' : 'text-neutral-500'}`}>
+                                  {item.materiales?.descripcion || 'Material no encontrado'}
+                                </span>
+                                {isOutOfStock && (
+                                  <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-500 text-[6px] font-black uppercase italic border border-rose-500/20">Sin Stock</span>
+                                )}
+                              </div>
+                              <span className={`shrink-0 ${isOutOfStock ? 'text-rose-400' : 'text-white'}`}>
+                                {item.cantidad_solicitada} {item.materiales?.unidad || ''}
+                              </span>
                             </div>
-                            <div className="flex items-center gap-1 text-[8px] font-black text-amber-500/60 uppercase italic">
-                              <MapPin size={8} /> {locs}
+                            <div className={`flex items-center gap-1 text-[8px] font-black uppercase italic ${isOutOfStock ? 'text-rose-500/50' : 'text-amber-500/60'}`}>
+                              <MapPin size={8} /> {isOutOfStock ? 'REVISAR DISPONIBILIDAD' : locs}
                             </div>
                           </div>
                         )
