@@ -142,19 +142,12 @@ export default function Home() {
           )}
 
           {/* PRE-PEDIDO (PÚBLICO) */}
-          <MenuCard 
-            href="/pedidos/nuevo"
-            title="Pre-Pedido"
-            desc="Solicitud de operarios."
-            icon={<Package size={22} />}
-            accent="emerald"
-          />
 
           {/* MIS PEDIDOS (PÚBLICO) */}
           <MenuCard 
             href="/pedidos"
             title="Mis Pedidos"
-            desc="Seguimiento de mis solicitudes."
+            desc="Seguimiento y estados de avance."
             icon={<ClipboardList size={22} />}
             accent="blue"
           />

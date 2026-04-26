@@ -74,14 +74,27 @@ export default function MisPedidos() {
               {user?.rol === 'admin' ? 'Gestión Global' : 'Mis Pedidos'}
             </h1>
           </div>
-          <div className="w-9" />
+          <Link 
+            href="/pedidos/nuevo" 
+            className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-500 hover:bg-emerald-500/20 transition-all active:scale-90"
+          >
+            <Plus size={18} />
+          </Link>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
           {pedidos.length === 0 ? (
-            <div className="py-20 flex flex-col items-center text-center opacity-20">
-              <ShoppingBag size={48} className="mb-4" />
-              <p className="text-[10px] font-black uppercase tracking-widest">No has realizado pedidos aún</p>
+            <div className="py-20 flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-neutral-900 border border-neutral-800 rounded-3xl flex items-center justify-center mb-6 opacity-20">
+                <ShoppingBag size={40} />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 mb-8">No has realizado pedidos aún</p>
+              <Link 
+                href="/pedidos/nuevo"
+                className="bg-emerald-500 text-black px-8 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+              >
+                Solicitar Material
+              </Link>
             </div>
           ) : (
             pedidos.map(p => {
