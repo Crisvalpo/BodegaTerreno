@@ -8,6 +8,13 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'LukeAPP - Bodega Terreno',
   description: 'Sistema de Bodega de Materiales en Terreno',
+  manifest: '/manifest.json',
+}
+
+export const viewport = {
+  themeColor: '#10b981',
+  width: 'device-width',
+  initialScale: 1,
 }
 
 

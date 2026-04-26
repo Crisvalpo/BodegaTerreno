@@ -1,0 +1,17 @@
+{
+  "name": "Luke Bodega Terreno",
+  "short_name": "Luke Bodega",
+  "description": "Sistema de gestión de inventario y piping para terreno.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

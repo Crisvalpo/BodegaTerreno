@@ -17,14 +17,12 @@ export default function LoginPage() {
     
     setIsLoading(true)
     try {
-      // Limpiar el RUT ingresado (quitar puntos y guiones) para la búsqueda
       const cleanInput = rut.replace(/[\.-]/g, '').trim()
       
-      // Intentar buscar el RUT tal cual, o sin guión
       const { data: user, error } = await supabase
         .from('usuarios')
         .select('*')
-        .or(`rut.eq.${rut},rut.ilike.${cleanInput}%`) // Busca coincidencia exacta o parecida
+        .or(`rut.eq.${rut},rut.ilike.${cleanInput}%`)
         .maybeSingle()
 
       if (error) throw error
@@ -87,11 +85,8 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-      </div>
-    </div>
-  )
-}
 
+        {/* Footer info moved inside the max-w-md container */}
         <div className="mt-10 text-center flex flex-col gap-4">
           <div className="flex items-center justify-center gap-6">
             <div className="flex items-center gap-2 text-xs font-bold text-neutral-600 uppercase tracking-widest">
