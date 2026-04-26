@@ -1,97 +1,183 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Package, ScanLine, LayoutDashboard, Database, Container, Settings, PackagePlus } from 'lucide-react'
+import { 
+  LayoutDashboard, 
+  PackagePlus, 
+  HandHeart, 
+  Package, 
+  LogOut,
+  User,
+  ShieldCheck,
+  ChevronRight,
+  ScanLine,
+  Container
+} from 'lucide-react'
 
 export default function Home() {
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('bodega_user')
+    if (!storedUser) {
+      router.push('/login')
+    } else {
+      setUser(JSON.parse(storedUser))
+    }
+    setIsLoading(false)
+  }, [router])
+
+  const handleLogout = () => {
+    localStorage.removeItem('bodega_user')
+    router.push('/login')
+  }
+
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <Container className="w-12 h-12 text-emerald-500" />
+          <p className="text-neutral-500 font-bold uppercase tracking-widest text-[10px]">Cargando Sistema...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const isAdmin = user.rol === 'admin'
+  const isBodeguero = user.rol === 'bodeguero' || isAdmin
+
   return (
-    <main className="min-h-screen bg-neutral-950 p-6 flex flex-col items-center justify-center relative overflow-hidden">
-      
-      {/* Top right Settings */}
-      <div className="absolute top-6 right-6 z-50">
-        <Link href="/admin" className="p-3 bg-neutral-900/50 hover:bg-white/10 rounded-2xl border border-white/5 text-neutral-400 hover:text-white transition-all flex items-center justify-center shadow-lg" title="Ajustes de Administración">
-          <Settings className="w-6 h-6" />
-        </Link>
-      </div>
+    <main className="min-h-screen bg-neutral-950 text-white p-6 md:p-12 relative overflow-hidden">
+      {/* Background Glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-600/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
 
-      {/* Luces y brillos de fondo */}
-      <div className="absolute top-1/4 left-1/4 w-[50vw] h-[50vw] rounded-full bg-emerald-600/10 blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[40vw] h-[40vw] rounded-full bg-blue-600/10 blur-[150px] pointer-events-none" />
-
-      <div className="text-center z-10 max-w-4xl mb-12">
-        <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full glass mb-6 text-sm font-medium text-emerald-400">
-          <span className="relative flex h-2 w-2 mr-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          Sistema en Línea
-        </div>
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-6">
-          <div className="p-3 bg-white/5 rounded-2xl border border-white/10 shadow-inner">
-            <Container className="w-10 h-10 text-emerald-400" strokeWidth={1.5} />
-          </div>
-          <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight">
-            LukeAPP <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">Bodega Terreno</span>
-          </h1>
-        </div>
-        <p className="text-lg md:text-xl text-neutral-400 font-light">
-          Plataforma logística en terreno para la trazabilidad y entrega de materiales piping. Selecciona un módulo para comenzar.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 z-10 w-full max-w-7xl px-4">
+      <div className="max-w-5xl mx-auto relative z-10">
         
-        {/* Card 1: Recepción */}
-        <Link href="/recepcion" className="group block h-full">
-          <div className="glass rounded-3xl p-8 h-full border border-white/5 hover:border-emerald-500/30 hover:bg-white/10 transition-all duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-neutral-900 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-inner">
-              <PackagePlus className="w-7 h-7 text-emerald-400" />
+        {/* Header con Perfil */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-[1.5rem] bg-neutral-900 border border-white/10 flex items-center justify-center shadow-2xl relative group">
+              <div className="absolute inset-0 bg-emerald-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <User className="w-8 h-8 text-emerald-500 relative z-10" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-3">Recepción de Material</h2>
-            <p className="text-neutral-400 text-sm leading-relaxed">
-              Ingresa stock al contenedor. Escanea el material y asígnale un rack físico.
-            </p>
-          </div>
-        </Link>
-
-        {/* Card 2: Pre-Pedido */}
-        <Link href="/pedidos/nuevo" className="group block h-full">
-          <div className="glass rounded-3xl p-8 h-full border border-white/5 hover:border-amber-500/30 hover:bg-white/10 transition-all duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-neutral-900 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-inner">
-              <Package className="w-7 h-7 text-amber-400" />
+            <div>
+              <h1 className="text-3xl font-black tracking-tighter leading-none mb-1.5 uppercase">
+                {user.nombre}
+              </h1>
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em] shadow-lg ${
+                  isAdmin ? 'bg-emerald-500 text-neutral-950' : isBodeguero ? 'bg-blue-500 text-white' : 'bg-amber-500 text-neutral-950'
+                }`}>
+                  {user.rol}
+                </span>
+                <div className="h-1 w-1 rounded-full bg-neutral-700" />
+                <span className="text-neutral-500 text-xs font-bold tracking-tight">{user.rut}</span>
+              </div>
             </div>
-            <h2 className="text-xl font-bold text-white mb-3">Pre-Pedido Terreno</h2>
-            <p className="text-neutral-400 text-sm leading-relaxed">
-              Solicita materiales para tu isométrico. Genera un carrito de reserva rápida.
-            </p>
           </div>
-        </Link>
+          
+          <button 
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/5 hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 text-neutral-400 hover:text-red-400 font-bold transition-all group text-sm"
+          >
+            <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            Cerrar Sesión
+          </button>
+        </header>
 
-        {/* Card 3: Mesón Bodeguero */}
-        <Link href="/meson" className="group block h-full">
-          <div className="glass rounded-3xl p-8 h-full border border-white/5 hover:border-blue-500/30 hover:bg-white/10 transition-all duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-neutral-900 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-inner">
-              <ScanLine className="w-7 h-7 text-blue-400" />
-            </div>
-            <h2 className="text-xl font-bold text-white mb-3">Mesón de Entregas</h2>
-            <p className="text-neutral-400 text-sm leading-relaxed">
-              Escanea cédulas, gestiona pedidos pendientes y registra el despacho final.
-            </p>
+        {/* Grid de Accesos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+          
+          {/* Módulos de Terreno (Para todos) */}
+          <MenuCard 
+            href="/pedidos/nuevo"
+            title="Pre-Pedido"
+            desc="Solicita materiales para tu isométrico desde terreno."
+            icon={<Package className="w-7 h-7" />}
+            color="amber"
+          />
+
+          {/* Módulos de Bodega (Admin y Bodeguero) */}
+          {isBodeguero && (
+            <>
+              <MenuCard 
+                href="/meson"
+                title="Mesón Entregas"
+                desc="Gestión de despachos y escaneo de cédulas."
+                icon={<HandHeart className="w-7 h-7" />}
+                color="blue"
+              />
+              <MenuCard 
+                href="/recepcion"
+                title="Recepción"
+                desc="Ingreso de nuevos materiales al inventario."
+                icon={<PackagePlus className="w-7 h-7" />}
+                color="emerald"
+              />
+              <MenuCard 
+                href="/dashboard"
+                title="Stock & Métricas"
+                desc="Vista general de existencias e historial vivo."
+                icon={<LayoutDashboard className="w-7 h-7" />}
+                color="purple"
+              />
+            </>
+          )}
+
+          {/* Módulos de Administración (Solo Admin) */}
+          {isAdmin && (
+            <MenuCard 
+              href="/admin/usuarios"
+              title="Gestión Usuarios"
+              desc="Administra roles, permisos y acceso del personal."
+              icon={<ShieldCheck className="w-7 h-7" />}
+              color="rose"
+            />
+          )}
+        </div>
+
+        <footer className="mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-[10px] text-neutral-600 font-bold uppercase tracking-[0.2em]">LukeAPP Bodega Terreno v2.5</p>
+          <div className="flex gap-6">
+            <span className="text-[10px] text-neutral-700 font-black uppercase tracking-widest flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+              Servidor Activo
+            </span>
           </div>
-        </Link>
-
-        {/* Card 4: Dashboard General */}
-        <Link href="/dashboard" className="group block h-full">
-          <div className="glass rounded-3xl p-8 h-full border border-white/5 hover:border-purple-500/30 hover:bg-white/10 transition-all duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-neutral-900 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-inner">
-              <LayoutDashboard className="w-7 h-7 text-purple-400" />
-            </div>
-            <h2 className="text-xl font-bold text-white mb-3">Stock y Métricas</h2>
-            <p className="text-neutral-400 text-sm leading-relaxed">
-              Control general de existencias por rack y métricas de movimiento.
-            </p>
-          </div>
-        </Link>
-
+        </footer>
       </div>
     </main>
+  )
+}
+
+function MenuCard({ href, title, desc, icon, color }: { href: string, title: string, desc: string, icon: any, color: string }) {
+  const colorMap: any = {
+    emerald: 'from-emerald-500/10 to-emerald-500/0 hover:border-emerald-500/30 text-emerald-400 bg-emerald-500/5',
+    blue: 'from-blue-500/10 to-blue-500/0 hover:border-blue-500/30 text-blue-400 bg-blue-500/5',
+    purple: 'from-purple-500/10 to-purple-500/0 hover:border-purple-500/30 text-purple-400 bg-purple-500/5',
+    amber: 'from-amber-500/10 to-amber-500/0 hover:border-amber-500/30 text-amber-400 bg-amber-500/5',
+    rose: 'from-rose-500/10 to-rose-500/0 hover:border-rose-500/30 text-rose-400 bg-rose-500/5',
+  }
+
+  return (
+    <Link href={href} className="group h-full">
+      <div className={`relative p-8 rounded-[2rem] border border-white/5 bg-gradient-to-br ${colorMap[color]} transition-all duration-500 hover:shadow-2xl hover:shadow-black/50 h-full flex flex-col`}>
+        <div className="mb-6 p-4 rounded-2xl bg-neutral-900/50 border border-white/10 w-fit group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-xl">
+          {icon}
+        </div>
+        <div className="flex-1">
+          <h3 className="text-xl font-bold tracking-tight text-white mb-2 group-hover:text-white transition-colors">{title}</h3>
+          <p className="text-neutral-500 text-xs font-medium leading-relaxed mb-6">{desc}</p>
+        </div>
+        <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-neutral-700 group-hover:text-white transition-colors">
+          Acceder módulo <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+        </div>
+      </div>
+    </Link>
   )
 }
