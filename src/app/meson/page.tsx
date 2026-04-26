@@ -511,6 +511,7 @@ export default function MesonPage() {
 
           {/* Detalle de Entrega (Panel Principal Móvil) */}
           {(pedidoSeleccionado || isDirectMode) && (
+            <>
             <div className="flex flex-col gap-4 pb-24 animate-in slide-in-from-bottom-6">
               <div className="flex items-center justify-between px-2">
                 <h3 className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Detalle de Suministros</h3>
@@ -603,8 +604,8 @@ export default function MesonPage() {
                 </button>
               </div>
             )}
+            </>
           )}
-          </>
           ) : (
             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4">
               {allPendientes.length === 0 ? (
