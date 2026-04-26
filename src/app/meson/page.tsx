@@ -58,6 +58,7 @@ export default function MesonPage() {
   const [activeTab, setActiveTab] = useState<'entrega' | 'pendientes'>('entrega')
   const [allPendientes, setAllPendientes] = useState<Pedido[]>([])
   const [isScannerOpen, setIsScannerOpen] = useState(false)
+  const [rutSuggestions, setRutSuggestions] = useState<any[]>([])
 
   // DERIVADOS
   const itemsToProcess = isDirectMode ? directItems : (pedidoSeleccionado?.pedido_items || [])
