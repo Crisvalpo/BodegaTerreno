@@ -72,7 +72,7 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
       )
       
       // Detectar capacidades de Zoom y Antorcha
-      const track = html5QrCode.getRunningTrack();
+      const track = (html5QrCode as any).getRunningTrack();
       const capabilities = track.getCapabilities() as any;
       
       if (capabilities.zoom) {
