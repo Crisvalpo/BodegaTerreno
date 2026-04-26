@@ -482,23 +482,26 @@ export default function MesonPage() {
                         
                         const stockTotal = item.materiales?.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
                         const isOutOfStock = stockTotal <= 0
+                        const isInsufficient = !isOutOfStock && stockTotal < (Number(item.cantidad_solicitada) - Number(item.cantidad_entregada || 0))
 
                         return (
                           <div key={item.id} className="flex flex-col gap-0.5 border-b border-white/5 pb-2 last:border-0 last:pb-0">
                             <div className="flex justify-between items-center text-[10px] font-bold">
                               <div className="flex items-center gap-2 truncate mr-4">
-                                <span className={`truncate ${isOutOfStock ? 'text-rose-500' : 'text-neutral-500'}`}>
+                                <span className={`truncate ${isOutOfStock ? 'text-rose-500' : isInsufficient ? 'text-amber-500' : 'text-neutral-500'}`}>
                                   {item.materiales?.descripcion || 'Material no encontrado'}
                                 </span>
-                                {isOutOfStock && (
+                                {isOutOfStock ? (
                                   <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-500 text-[6px] font-black uppercase italic border border-rose-500/20">Sin Stock</span>
-                                )}
+                                ) : isInsufficient ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 text-[6px] font-black uppercase italic border border-amber-500/20">Parcial (Stock: {stockTotal})</span>
+                                ) : null}
                               </div>
-                              <span className={`shrink-0 ${isOutOfStock ? 'text-rose-400' : 'text-white'}`}>
+                              <span className={`shrink-0 ${isOutOfStock ? 'text-rose-400' : isInsufficient ? 'text-amber-400' : 'text-white'}`}>
                                 {item.cantidad_solicitada} {item.materiales?.unidad || ''}
                               </span>
                             </div>
-                            <div className={`flex items-center gap-1 text-[8px] font-black uppercase italic ${isOutOfStock ? 'text-rose-500/50' : 'text-amber-500/60'}`}>
+                            <div className={`flex items-center gap-1 text-[8px] font-black uppercase italic ${isOutOfStock ? 'text-rose-500/50' : isInsufficient ? 'text-amber-500/50' : 'text-amber-500/60'}`}>
                               <MapPin size={8} /> {isOutOfStock ? 'REVISAR DISPONIBILIDAD' : locs}
                             </div>
                           </div>
