@@ -458,9 +458,17 @@ export default function MesonPage() {
                   <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-col gap-4">
                     <div className="flex justify-between items-start">
                       <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic mb-1">
+                          {p.estado === 'listo' ? '🟢 LISTO' : p.estado === 'picking' ? '🔵 EN PREPARACIÓN' : '🟡 PENDIENTE'}
+                        </span>
+                        <h4 className="text-sm font-black text-white leading-none uppercase italic">{p.usuarios.nombre}</h4>
+                        <p className="text-[10px] font-mono text-neutral-500 mt-1">{p.isometricos.codigo}</p>
+                      </div>
+                      <span className="text-[8px] font-bold text-neutral-700 uppercase">{new Date(p.created_at).toLocaleTimeString()}</span>
+                    </div>
+                    
                     <div className="flex flex-col gap-2 bg-black/40 rounded-xl p-3">
                       {p.pedido_items.slice(0, 5).map(item => {
-                        // Consolidar ubicaciones
                         const locs = item.materiales.existencias
                           ?.filter((ex: any) => ex.cantidad > 0)
                           .map((ex: any) => `${ex.ubicaciones.zona}-${ex.ubicaciones.rack}${ex.ubicaciones.nivel}`)
