@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { 
   Package, Clock, CheckCircle2, ChevronRight, 
   X, ShoppingBag, Loader2, User as UserIcon,
-  ArrowLeft, AlertCircle, Plus
+  ArrowLeft, AlertCircle, Plus, Activity
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -42,12 +42,26 @@ export default function MisPedidos() {
     }
   }
 
-  const getStatusInfo = (status: string) => {
+  const getStatusInfo = (pedido: any) => {
+    const status = pedido.estado
+    if (status === 'entregado') {
+      const items = pedido.pedido_items || []
+      const totalRequested = items.reduce((acc: number, i: any) => acc + Number(i.cantidad_solicitada), 0)
+      const totalDelivered = items.reduce((acc: number, i: any) => acc + Number(i.cantidad_entregada || 0), 0)
+      
+      if (totalDelivered === 0) {
+        return { label: 'Cerrado / Sin Stock', color: 'text-rose-500', bg: 'bg-rose-500/10', icon: <AlertCircle size={14} /> }
+      }
+      if (totalDelivered < totalRequested) {
+        return { label: 'Finalizado Parcial', color: 'text-amber-500', bg: 'bg-amber-500/10', icon: <Clock size={14} /> }
+      }
+      return { label: 'Entregado', color: 'text-emerald-500', bg: 'bg-emerald-500/10', icon: <CheckCircle2 size={14} /> }
+    }
+
     switch (status) {
       case 'pendiente': return { label: 'En Cola', color: 'text-amber-500', bg: 'bg-amber-500/10', icon: <Clock size={14} /> }
       case 'picking': return { label: 'En Preparación', color: 'text-blue-500', bg: 'bg-blue-500/10', icon: <Loader2 size={14} className="animate-spin" /> }
       case 'listo': return { label: 'Listo para Retiro', color: 'text-emerald-400', bg: 'bg-emerald-500/20', icon: <CheckCircle2 size={14} className="animate-pulse" /> }
-      case 'entregado': return { label: 'Entregado', color: 'text-emerald-500', bg: 'bg-emerald-500/10', icon: <CheckCircle2 size={14} /> }
       default: return { label: status, color: 'text-neutral-500', bg: 'bg-neutral-500/10', icon: <Package size={14} /> }
     }
   }
@@ -98,13 +112,16 @@ export default function MisPedidos() {
             </div>
           ) : (
             pedidos.map(p => {
-              const status = getStatusInfo(p.estado)
+              const status = getStatusInfo(p)
               
               const calcularAvance = (pedido: any) => {
-                if (pedido.estado === 'listo' || pedido.estado === 'entregado') return 100
                 const items = pedido.pedido_items || []
                 const total = items.reduce((acc: number, i: any) => acc + Number(i.cantidad_solicitada), 0)
                 const entregado = items.reduce((acc: number, i: any) => acc + Number(i.cantidad_entregada || 0), 0)
+                
+                if (pedido.estado === 'listo') return 100
+                if (pedido.estado === 'entregado' && total > 0 && entregado === 0) return 100 // Para que la barra se llene si se cerró, o mejor, que refleje el 0?
+                // Decidimos que refleje la realidad física:
                 return total > 0 ? Math.round((entregado / total) * 100) : 0
               }
 
@@ -154,8 +171,12 @@ export default function MisPedidos() {
                   {/* Barra de Progreso */}
                   <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-emerald-500 transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(16,185,129,0.5)]" 
-                      style={{ width: `${progress}%` }}
+                      className={`h-full transition-all duration-1000 ease-out shadow-lg ${
+                        p.estado === 'entregado' && progress === 0 ? 'bg-rose-500 shadow-rose-500/50' :
+                        p.estado === 'entregado' && progress < 100 ? 'bg-amber-500 shadow-amber-500/50' :
+                        'bg-emerald-500 shadow-emerald-500/50'
+                      }`} 
+                      style={{ width: `${p.estado === 'entregado' && progress === 0 ? 100 : progress}%` }}
                     />
                   </div>
 
@@ -164,7 +185,11 @@ export default function MisPedidos() {
                     {steps.map((s, idx) => (
                       <div key={s} className="flex flex-col items-center gap-1.5">
                         <div className={`w-2 h-2 rounded-full transition-all duration-500 ${
-                          idx <= currentStepIndex ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]' : 'bg-neutral-800'
+                          idx <= currentStepIndex 
+                            ? (p.estado === 'entregado' && progress === 0 ? 'bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.8)]' : 
+                               p.estado === 'entregado' && progress < 100 ? 'bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.8)]' :
+                               'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]')
+                            : 'bg-neutral-800'
                         }`} />
                         <span className={`text-[6px] font-black uppercase tracking-tighter ${
                           idx <= currentStepIndex ? 'text-neutral-400' : 'text-neutral-700'

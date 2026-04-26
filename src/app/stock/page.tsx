@@ -302,9 +302,14 @@ function StockContent() {
           </button>
           <button 
             onClick={() => setActiveTab('shortages')}
-            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'shortages' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20' : 'text-neutral-500 hover:text-white'}`}
+            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeTab === 'shortages' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20' : 'text-neutral-500 hover:text-white'}`}
           >
             Quiebres de Stock
+            {shortages.length > 0 && (
+              <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-white text-rose-600 text-[10px] font-black animate-pulse shadow-sm">
+                {shortages.length}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => setActiveTab('history')}

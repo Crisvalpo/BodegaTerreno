@@ -28,6 +28,7 @@ export default function Home() {
     pendientes: 0,
     transito: 0,
     critico: 0,
+    quiebres: 0,
     userPendientes: 0,
     userListos: 0,
     userEntregados: 0
@@ -61,11 +62,16 @@ export default function Home() {
       const { data: existencias } = await supabase.from('existencias').select('cantidad')
       const criticoCount = existencias?.filter(e => e.cantidad < 5).length || 0
 
+      // Conteo de Quiebres (Demanda Insatisfecha)
+      const { data: qData } = await supabase.from('pedido_items').select('material_id').filter('cantidad_entregada', 'lt', 'cantidad_solicitada')
+      const uniqueQuiebres = new Set(qData?.map(i => i.material_id)).size
+
       setStats({
         hoy: pedidosHoy || 0,
         pendientes: pendientes || 0,
         transito: transito || 0,
         critico: criticoCount,
+        quiebres: uniqueQuiebres,
         userPendientes: uPendientes || 0,
         userListos: uListos || 0,
         userEntregados: uEntregados || 0
@@ -186,6 +192,9 @@ export default function Home() {
             desc="Consulta de existencias."
             icon={<Database size={22} />}
             accent="neutral"
+            badges={stats.quiebres > 0 ? [
+              { count: stats.quiebres, color: 'bg-rose-500 animate-pulse' }
+            ] : []}
           />
 
           {/* HISTORIAL (SOLO AUTORIZADOS) */}
