@@ -565,8 +565,8 @@ export default function MesonPage() {
                         </button>
                       </div>
                     </div>
-                  </div>
                 )
+              })}
             </div>
 
             {/* Sección de Cierre por Falta de Stock */}

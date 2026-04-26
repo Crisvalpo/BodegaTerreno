@@ -51,17 +51,65 @@ function StockContent() {
   const [groups, setGroups] = useState<string[]>([])
   const [history, setHistory] = useState<any[]>([])
   const [isometricConsumption, setIsometricConsumption] = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState<'stock' | 'history' | 'isos'>('stock')
+  const [shortages, setShortages] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<'stock' | 'history' | 'isos' | 'shortages'>('stock')
 
   useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab === 'history') setActiveTab('history')
     if (tab === 'isos') setActiveTab('isos')
+    if (tab === 'shortages') setActiveTab('shortages')
     
     fetchStock()
     fetchHistory()
     fetchIsometricConsumption()
+    fetchShortages()
   }, [searchParams])
+
+  async function fetchShortages() {
+    try {
+      const { data } = await supabase
+        .from('pedido_items')
+        .select(`
+          cantidad_solicitada,
+          cantidad_entregada,
+          materiales(ident_code, descripcion),
+          pedidos(id, observaciones, usuarios(nombre))
+        `)
+        .filter('cantidad_entregada', 'lt', 'cantidad_solicitada')
+      
+      if (!data) return
+
+      // Agrupar por material
+      const agg: any = {}
+      data.forEach((item: any) => {
+        const ident = item.materiales?.ident_code
+        if (!agg[ident]) {
+          agg[ident] = {
+            descripcion: item.materiales?.descripcion,
+            totalFaltante: 0,
+            casos: []
+          }
+        }
+        const faltante = Number(item.cantidad_solicitada) - Number(item.cantidad_entregada)
+        agg[ident].totalFaltante += faltante
+        agg[ident].casos.push({
+          usuario: item.pedidos?.usuarios?.nombre,
+          faltante,
+          observacion: item.pedidos?.observaciones
+        })
+      })
+
+      const result = Object.entries(agg).map(([ident, details]: [string, any]) => ({
+        ident,
+        ...details
+      })).sort((a, b) => b.totalFaltante - a.totalFaltante)
+
+      setShortages(result)
+    } catch (err) {
+      console.error('Error en quiebres:', err)
+    }
+  }
 
   async function fetchHistory() {
     const { data } = await supabase
@@ -251,6 +299,12 @@ function StockContent() {
             className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'isos' ? 'bg-blue-600 text-white' : 'text-neutral-500 hover:text-white'}`}
           >
             Consumo por Isométrico
+          </button>
+          <button 
+            onClick={() => setActiveTab('shortages')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'shortages' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20' : 'text-neutral-500 hover:text-white'}`}
+          >
+            Quiebres de Stock
           </button>
           <button 
             onClick={() => setActiveTab('history')}
@@ -486,6 +540,71 @@ function StockContent() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'shortages' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6">
+            <div className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-3xl mb-8 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-rose-500 uppercase italic tracking-tighter">Reporte de Demanda Insatisfecha</h2>
+                <p className="text-neutral-400 text-sm">Materiales solicitados en terreno que no pudieron ser entregados por falta de stock.</p>
+              </div>
+              <div className="text-right">
+                <p className="text-4xl font-black text-rose-500">{shortages.length}</p>
+                <p className="text-[10px] text-neutral-500 font-black uppercase">Quiebres Detectados</p>
+              </div>
+            </div>
+
+            <div className="glass rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-white/5 text-neutral-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">
+                    <th className="px-8 py-4">Ident Code / Descripción</th>
+                    <th className="px-8 py-4">Casos & Observaciones de Bodega</th>
+                    <th className="px-8 py-4 text-right">Cant. Faltante Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {shortages.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-8 py-20 text-center">
+                        <p className="text-neutral-600 italic">No hay quiebres registrados. ¡Bodega al día!</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    shortages.map((s, idx) => (
+                      <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
+                        <td className="px-8 py-6">
+                          <p className="text-white font-black text-lg tracking-tighter uppercase italic mb-1 group-hover:text-rose-400 transition-colors">{s.ident}</p>
+                          <p className="text-[10px] text-neutral-500 font-bold uppercase line-clamp-1 leading-none">{s.descripcion}</p>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col gap-2">
+                            {s.casos.map((c: any, cidx: number) => (
+                              <div key={cidx} className="flex flex-col border-l-2 border-rose-500/30 pl-3">
+                                <p className="text-[10px] text-white font-black uppercase italic leading-none">{c.usuario}</p>
+                                {c.observacion && (
+                                  <p className="text-[9px] text-rose-500/50 italic font-medium leading-relaxed mt-1">"{c.observacion}"</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex flex-col items-end">
+                            <span className="text-3xl font-black text-rose-500 italic leading-none">
+                              {s.totalFaltante}
+                            </span>
+                            <span className="text-[8px] text-neutral-600 font-black uppercase mt-1">Unidades Pendientes</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
