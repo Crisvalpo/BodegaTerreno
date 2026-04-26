@@ -124,15 +124,26 @@ export default function MisPedidos() {
                       {(() => {
                         const isos = new Set(p.pedido_items.map((i: any) => i.isometrico_id).filter(Boolean))
                         const label = isos.size > 1 ? 'MÚLTIPLES PLANOS' : (p.isometricos?.codigo || 'VALE GENERAL / MISCELÁNEO')
+                        const isStaff = user?.rol === 'admin' || user?.rol === 'bodeguero'
+                        
                         return (
-                          <h4 className="text-xs font-black text-white leading-none uppercase italic">
-                            Plano: {label}
-                          </h4>
+                          <div className="flex flex-col gap-1">
+                            <h4 className={`text-sm font-black leading-none uppercase italic ${isStaff ? 'text-emerald-500' : 'text-white'}`}>
+                              {isStaff ? (
+                                <div className="flex items-center gap-2">
+                                  <UserIcon size={14} className="shrink-0" />
+                                  <span>{p.usuarios?.nombre}</span>
+                                </div>
+                              ) : (
+                                `Plano: ${label}`
+                              )}
+                            </h4>
+                            <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">
+                              {isStaff ? `Plano: ${label}` : `Ticket: #${p.id.slice(0, 5)}`}
+                            </p>
+                          </div>
                         )
                       })()}
-                      {user?.rol === 'admin' && (
-                        <span className="text-[9px] font-bold text-emerald-500 uppercase">Por: {p.usuarios?.nombre}</span>
-                      )}
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="text-[14px] font-black text-white italic">{progress}%</span>
