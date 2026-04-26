@@ -68,36 +68,44 @@ function StockContent() {
 
   async function fetchShortages() {
     try {
-      const { data } = await supabase
+      // Solo contamos quiebres de pedidos que ya fueron FINALIZADOS (entregado)
+      // para no confundir pedidos en cola con quiebres reales.
+      const { data, error } = await supabase
         .from('pedido_items')
         .select(`
           cantidad_solicitada,
           cantidad_entregada,
-          materiales(ident_code, descripcion),
-          pedidos(id, observaciones, usuarios(nombre))
+          materiales!inner(ident_code, descripcion),
+          pedidos!inner(id, observaciones, usuarios(nombre), estado)
         `)
-        .filter('cantidad_entregada', 'lt', 'cantidad_solicitada')
+        .eq('pedidos.estado', 'entregado')
       
+      if (error) throw error
       if (!data) return
 
-      // Agrupar por material
+      // Agrupar por material, solo si hubo faltante real
       const agg: any = {}
       data.forEach((item: any) => {
-        const ident = item.materiales?.ident_code
-        if (!agg[ident]) {
-          agg[ident] = {
-            descripcion: item.materiales?.descripcion,
-            totalFaltante: 0,
-            casos: []
+        const solicitado = Number(item.cantidad_solicitada)
+        const entregado = Number(item.cantidad_entregada || 0)
+        
+        if (entregado < solicitado) {
+          const ident = item.materiales?.ident_code
+          if (!agg[ident]) {
+            agg[ident] = {
+              descripcion: item.materiales?.descripcion,
+              totalFaltante: 0,
+              casos: []
+            }
           }
+          const faltante = solicitado - entregado
+          agg[ident].totalFaltante += faltante
+          agg[ident].casos.push({
+            usuario: item.pedidos?.usuarios?.nombre,
+            faltante,
+            observacion: item.pedidos?.observaciones
+          })
         }
-        const faltante = Number(item.cantidad_solicitada) - Number(item.cantidad_entregada)
-        agg[ident].totalFaltante += faltante
-        agg[ident].casos.push({
-          usuario: item.pedidos?.usuarios?.nombre,
-          faltante,
-          observacion: item.pedidos?.observaciones
-        })
       })
 
       const result = Object.entries(agg).map(([ident, details]: [string, any]) => ({

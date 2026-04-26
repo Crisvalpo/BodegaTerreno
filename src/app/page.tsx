@@ -62,9 +62,14 @@ export default function Home() {
       const { data: existencias } = await supabase.from('existencias').select('cantidad')
       const criticoCount = existencias?.filter(e => e.cantidad < 5).length || 0
 
-      // Conteo de Quiebres (Demanda Insatisfecha)
-      const { data: qData } = await supabase.from('pedido_items').select('material_id').filter('cantidad_entregada', 'lt', 'cantidad_solicitada')
-      const uniqueQuiebres = new Set(qData?.map(i => i.material_id)).size
+      // Conteo de Quiebres (Demanda Insatisfecha) - Solo pedidos FINALIZADOS
+      const { data: qData } = await supabase
+        .from('pedido_items')
+        .select('material_id, cantidad_solicitada, cantidad_entregada, pedidos!inner(estado)')
+        .eq('pedidos.estado', 'entregado')
+      
+      const realQuiebres = qData?.filter(i => Number(i.cantidad_entregada || 0) < Number(i.cantidad_solicitada))
+      const uniqueQuiebres = new Set(realQuiebres?.map(i => i.material_id)).size
 
       setStats({
         hoy: pedidosHoy || 0,
