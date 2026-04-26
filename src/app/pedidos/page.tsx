@@ -19,17 +19,23 @@ export default function MisPedidos() {
     if (storedUser) {
       const parsed = JSON.parse(storedUser)
       setUser(parsed)
-      fetchPedidos(parsed.id)
+      fetchPedidos(parsed)
     }
   }, [])
 
-  const fetchPedidos = async (userId: string) => {
+  const fetchPedidos = async (currentUser: any) => {
     try {
-      const { data } = await supabase
+      let query = supabase
         .from('pedidos')
-        .select('*, isometricos(codigo), pedido_items(*, materiales(descripcion, unidad))')
-        .eq('usuario_id', userId)
+        .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(descripcion, unidad))')
         .order('created_at', { ascending: false })
+      
+      // Si no es admin, solo ve los suyos
+      if (currentUser.rol !== 'admin') {
+        query = query.eq('usuario_id', currentUser.id)
+      }
+
+      const { data } = await query
       setPedidos(data || [])
     } finally {
       setIsLoading(false)
@@ -63,7 +69,9 @@ export default function MisPedidos() {
           </Link>
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1 italic">Gestión de Campo</span>
-            <h1 className="text-sm font-black text-white uppercase italic leading-none">Mis Pedidos</h1>
+            <h1 className="text-sm font-black text-white uppercase italic leading-none">
+              {user?.rol === 'admin' ? 'Gestión Global' : 'Mis Pedidos'}
+            </h1>
           </div>
           <div className="w-9" />
         </div>
@@ -85,7 +93,12 @@ export default function MisPedidos() {
                         {status.icon}
                         <span className="text-[8px] font-black uppercase tracking-widest">{status.label}</span>
                       </div>
-                      <h4 className="text-xs font-black text-white leading-none uppercase italic">Isométrico: {p.isometricos?.codigo || 'Varios'}</h4>
+                      <div className="flex flex-col gap-1">
+                        <h4 className="text-xs font-black text-white leading-none uppercase italic">Isométrico: {p.isometricos?.codigo || 'Varios'}</h4>
+                        {user?.rol === 'admin' && (
+                          <span className="text-[9px] font-bold text-emerald-500 uppercase">Solicitante: {p.usuarios?.nombre}</span>
+                        )}
+                      </div>
                       <p className="text-[8px] text-neutral-500 font-bold uppercase tracking-widest mt-1">
                         {new Date(p.created_at).toLocaleDateString()} · {new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
