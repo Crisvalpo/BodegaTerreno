@@ -76,7 +76,8 @@ function StockContent() {
           cantidad_solicitada,
           cantidad_entregada,
           materiales!inner(ident_code, descripcion),
-          pedidos!inner(id, observaciones, usuarios(nombre), estado)
+          pedidos!inner(id, observaciones, usuarios(nombre), estado),
+          isometricos(codigo)
         `)
         .eq('pedidos.estado', 'entregado')
       
@@ -102,6 +103,7 @@ function StockContent() {
           agg[ident].totalFaltante += faltante
           agg[ident].casos.push({
             usuario: item.pedidos?.usuarios?.nombre,
+            isometrico: item.isometricos?.codigo || 'VALE GENERAL',
             faltante,
             observacion: item.pedidos?.observaciones
           })
@@ -596,12 +598,17 @@ function StockContent() {
                           <p className="text-[10px] text-neutral-500 font-bold uppercase line-clamp-1 leading-none">{s.descripcion}</p>
                         </td>
                         <td className="px-8 py-6">
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-3">
                             {s.casos.map((c: any, cidx: number) => (
                               <div key={cidx} className="flex flex-col border-l-2 border-rose-500/30 pl-3">
-                                <p className="text-[10px] text-white font-black uppercase italic leading-none">{c.usuario}</p>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-[10px] text-white font-black uppercase italic leading-none">{c.usuario}</span>
+                                  <span className="text-[8px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-black border border-blue-500/10 uppercase tracking-tighter">
+                                    ISO: {c.isometrico}
+                                  </span>
+                                </div>
                                 {c.observacion && (
-                                  <p className="text-[9px] text-rose-500/50 italic font-medium leading-relaxed mt-1">"{c.observacion}"</p>
+                                  <p className="text-[9px] text-rose-500/50 italic font-medium leading-relaxed">"{c.observacion}"</p>
                                 )}
                               </div>
                             ))}
