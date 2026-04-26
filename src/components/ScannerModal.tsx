@@ -14,6 +14,11 @@ type ScannerModalProps = {
 export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanear Código' }: ScannerModalProps) {
   const [isInitializing, setIsInitializing] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const [zoomCaps, setZoomCaps] = useState<{ min: number, max: number, step: number } | null>(null)
+  const [hasTorch, setHasTorch] = useState(false)
+  const [isTorchOn, setIsTorchOn] = useState(false)
+  
   const qrCodeInstance = useRef<Html5Qrcode | null>(null)
 
   useEffect(() => {
@@ -29,8 +34,8 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
   const startScanner = async () => {
     setIsInitializing(true)
     setError(null)
+    setZoom(1)
     
-    // Pequeño delay para asegurar que el elemento DOM existe
     await new Promise(r => setTimeout(r, 300))
 
     try {
@@ -38,11 +43,10 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
       qrCodeInstance.current = html5QrCode
 
       const config = {
-        fps: 30, // Máximo recomendado para fluidez
+        fps: 30,
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
           const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          // Reducimos un poco el box para forzar al usuario a acercarse y mejorar resolución del área
-          const qrboxSize = Math.floor(minEdge * 0.7); 
+          const qrboxSize = Math.floor(minEdge * 0.85); 
           return { width: qrboxSize, height: qrboxSize };
         },
         aspectRatio: 1.0,
@@ -52,13 +56,7 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
           Html5QrcodeSupportedFormats.CODE_128
         ],
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true // USA ACELERACIÓN POR HARDWARE DEL MÓVIL SI ESTÁ DISPONIBLE
-        },
-        videoConstraints: {
-          facingMode: "environment",
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 720, max: 1080 },
-          focusMode: "continuous"
+          useBarCodeDetectorIfSupported: true
         }
       }
 
@@ -70,18 +68,61 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
           stopScanner()
           onClose()
         },
-        (errorMessage) => {
-          // Errores de escaneo ignorados
-        }
+        () => {} // Ignorar errores de frame
       )
       
+      // Detectar capacidades de Zoom y Antorcha
+      const track = html5QrCode.getRunningTrack();
+      const capabilities = track.getCapabilities() as any;
+      
+      if (capabilities.zoom) {
+        setZoomCaps({
+          min: capabilities.zoom.min,
+          max: capabilities.zoom.max,
+          step: capabilities.zoom.step
+        });
+        setZoom(capabilities.zoom.min);
+      }
+
+      if (capabilities.torch) {
+        setHasTorch(true);
+      }
+
       setIsInitializing(false)
     } catch (err: any) {
-      console.error("Error al iniciar el escáner:", err)
+      console.error("Error scanner:", err)
       setError("No pudimos acceder a tu cámara. Asegúrate de dar permisos.")
       setIsInitializing(false)
     }
   }
+
+  const handleZoomChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setZoom(value);
+    if (qrCodeInstance.current) {
+      try {
+        await qrCodeInstance.current.applyVideoConstraints({
+          advanced: [{ zoom: value }] as any
+        });
+      } catch (err) {
+        console.error("Error applying zoom:", err);
+      }
+    }
+  };
+
+  const toggleTorch = async () => {
+    if (qrCodeInstance.current) {
+      try {
+        const nextState = !isTorchOn;
+        await qrCodeInstance.current.applyVideoConstraints({
+          advanced: [{ torch: nextState }] as any
+        });
+        setIsTorchOn(nextState);
+      } catch (err) {
+        console.error("Error toggling torch:", err);
+      }
+    }
+  };
 
   const stopScanner = async () => {
     if (qrCodeInstance.current && qrCodeInstance.current.isScanning) {
@@ -89,7 +130,7 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
         await qrCodeInstance.current.stop()
         qrCodeInstance.current = null
       } catch (err) {
-        console.error("Error al detener el escáner:", err)
+        console.error("Error stop:", err)
       }
     }
   }
@@ -114,58 +155,78 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
         </div>
         
         {/* Scanner Area */}
-        <div className="p-4 flex-1 relative min-h-[350px] bg-black flex items-center justify-center">
+        <div className="p-4 flex-1 relative min-h-[400px] bg-black flex items-center justify-center">
           <div id="reader" className="w-full h-full overflow-hidden rounded-2xl"></div>
           
-          {/* Overlays */}
           {isInitializing && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950 z-10 gap-3">
               <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-              <p className="text-sm text-neutral-400 font-medium">Iniciando cámara trasera...</p>
+              <p className="text-sm text-neutral-400 font-medium">Optimizando lente...</p>
             </div>
           )}
 
           {error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950 z-20 p-8 text-center">
-              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-                <X className="text-red-500 w-8 h-8" />
-              </div>
-              <p className="text-white font-bold mb-2">Permiso de Cámara Denegado</p>
+              <X className="text-red-500 w-12 h-12 mb-4" />
+              <p className="text-white font-bold mb-2">Error de Cámara</p>
               <p className="text-neutral-500 text-sm mb-6">{error}</p>
-              <button 
-                onClick={startScanner}
-                className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all"
-              >
-                <RefreshCw size={18} />
-                Reintentar
+              <button onClick={startScanner} className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2">
+                <RefreshCw size={18} /> Reintentar
               </button>
             </div>
           )}
 
-          {/* Scan UI Overlay (Solo se ve cuando está escaneando) */}
           {!isInitializing && !error && (
-            <div className="absolute inset-0 pointer-events-none border-[40px] border-black/40">
-              <div className="w-full h-full border-2 border-emerald-500/50 rounded-xl relative">
+            <div className="absolute inset-0 pointer-events-none border-[30px] border-black/40 flex items-center justify-center">
+              <div className="w-full h-full border-2 border-emerald-500/30 rounded-xl relative">
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-500 rounded-tl-lg"></div>
                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-500 rounded-tr-lg"></div>
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-500 rounded-bl-lg"></div>
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-500 rounded-br-lg"></div>
-                
-                <div className="absolute top-1/2 left-0 w-full h-[2px] bg-emerald-500/30 animate-pulse"></div>
+                <div className="absolute top-1/2 left-0 w-full h-[1px] bg-emerald-500/50 animate-pulse"></div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 text-center bg-white/5">
-          <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest mb-1">
-            Modo: Cámara Trasera
-          </p>
-          <p className="text-xs text-neutral-500">
-            Apunta directamente al código QR o PDF417 de la cédula.
-          </p>
-        </div>
+        {/* CONTROLES: ZOOM Y LUZ */}
+        {!isInitializing && !error && (
+          <div className="px-8 py-6 bg-white/5 border-t border-white/5 space-y-6">
+            {zoomCaps && (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-[10px] text-neutral-500 font-black uppercase tracking-widest">
+                  <span>Zoom Digital</span>
+                  <span className="text-emerald-400">{zoom.toFixed(1)}x</span>
+                </div>
+                <input 
+                  type="range"
+                  min={zoomCaps.min}
+                  max={zoomCaps.max}
+                  step={zoomCaps.step}
+                  value={zoom}
+                  onChange={handleZoomChange}
+                  className="w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+              </div>
+            )}
+            
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest">Cédula Detectada</p>
+                <p className="text-xs text-neutral-500">Usa el zoom si el QR es muy pequeño.</p>
+              </div>
+              
+              {hasTorch && (
+                <button 
+                  onClick={toggleTorch}
+                  className={`p-4 rounded-2xl transition-all ${isTorchOn ? 'bg-amber-500 text-white' : 'bg-neutral-800 text-neutral-400'}`}
+                >
+                  <RefreshCw className={isTorchOn ? 'animate-spin' : ''} size={20} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
