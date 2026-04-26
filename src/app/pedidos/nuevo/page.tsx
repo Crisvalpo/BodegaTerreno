@@ -36,7 +36,7 @@ export default function NuevoPedido() {
   // Paso 3: Catálogo
   const [materials, setMaterials] = useState<Material[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [cart, setCart] = useState<{material: Material, cantidad: number}[]>([])
+  const [cart, setCart] = useState<{material: Material, cantidad: number, isometrico: any}[]>([])
 
   // Recuperar sesión automáticamente
   useEffect(() => {
@@ -98,12 +98,13 @@ export default function NuevoPedido() {
   }
 
   const addToCart = (m: Material) => {
+    if (!isometrico) return toast.error('Selecciona un Isométrico primero')
     setCart(prev => {
-      const existing = prev.find(i => i.material.id === m.id)
-      if (existing) return prev.map(i => i.material.id === m.id ? { ...i, cantidad: i.cantidad + 1 } : i)
-      return [...prev, { material: m, cantidad: 1 }]
+      const existing = prev.find(i => i.material.id === m.id && i.isometrico.id === isometrico.id)
+      if (existing) return prev.map(i => (i.material.id === m.id && i.isometrico.id === isometrico.id) ? { ...i, cantidad: i.cantidad + 1 } : i)
+      return [...prev, { material: m, cantidad: 1, isometrico }]
     })
-    toast.success('Añadido')
+    toast.success(`Añadido a ${isometrico.codigo}`)
   }
 
   const createPedido = async () => {
@@ -111,15 +112,16 @@ export default function NuevoPedido() {
     setIsLoading(true)
     try {
       const { data: pedido, error: pError } = await supabase.from('pedidos').insert({
-        solicitante_id: usuario.id,
-        isometrico_id: isometrico.id,
-        estado: 'pendiente'
+        usuario_id: usuario.id,
+        estado: 'pendiente',
+        tipo: 'prepedido'
       }).select().single()
       if (pError) throw pError
       
       const items = cart.map(item => ({
         pedido_id: pedido.id,
         material_id: item.material.id,
+        isometrico_id: item.isometrico.id,
         cantidad_solicitada: item.cantidad,
         cantidad_entregada: 0
       }))
@@ -243,14 +245,26 @@ export default function NuevoPedido() {
 
           {step === 3 && (
             <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-8">
-              <div className="relative sticky top-0 z-40">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-700" size={16} />
-                <input 
-                  type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="BUSCAR MATERIAL..."
-                  className="w-full bg-black border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-xs font-bold text-white outline-none"
-                />
-              </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-700" size={16} />
+                    <input 
+                      type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="BUSCAR MATERIAL..."
+                      className="w-full bg-black border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-xs font-bold text-white outline-none"
+                    />
+                  </div>
+                  <button 
+                    onClick={() => { setIsometrico(null); setIsometricoQuery(''); setStep(2) }}
+                    className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-500 flex items-center justify-center"
+                    title="Añadir de otro Isométrico"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+                <div className="px-2">
+                  <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic">Añadiendo para: {isometrico?.codigo}</span>
+                </div>
 
               <div className="flex flex-col gap-3 pb-32">
                 {materials.map(m => {
@@ -303,10 +317,19 @@ export default function NuevoPedido() {
         </div>
 
         {step === 3 && cart.length > 0 && (
-          <div className="absolute bottom-6 left-6 right-6 z-50">
-            <button onClick={createPedido} className="w-full bg-emerald-500 text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-emerald-900/40 uppercase tracking-widest text-xs">
-              <CheckCircle2 size={18} /> Confirmar {cart.length} Items
-            </button>
+          <div className="absolute bottom-6 left-6 right-6 z-50 flex flex-col gap-3">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-2xl flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-neutral-500 uppercase tracking-widest leading-none mb-1">Items en Carrito</span>
+                <span className="text-xl font-black text-white leading-none">{cart.length}</span>
+              </div>
+              <button 
+                onClick={createPedido} 
+                className="bg-emerald-500 text-black px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2"
+              >
+                <CheckCircle2 size={16} /> Finalizar Pedido
+              </button>
+            </div>
           </div>
         )}
       </div>
