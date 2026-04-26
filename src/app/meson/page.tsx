@@ -343,19 +343,61 @@ export default function MesonPage() {
                   <User size={14} className="text-emerald-500" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Pedidos de: {pedidos[0].usuarios.nombre}</span>
                 </div>
-                {pedidos.map(p => (
-                  <button 
-                    key={p.id}
-                    onClick={() => handleSelectPedido(p)}
-                    className={`w-full text-left p-4 rounded-xl border transition-all ${pedidoSeleccionado?.id === p.id ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-neutral-900 border-neutral-800'}`}
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-mono font-black text-white">{p.isometricos?.codigo}</span>
-                      <ChevronRight size={14} className="text-neutral-700" />
-                    </div>
-                    <p className="text-[8px] text-neutral-500 uppercase tracking-widest italic">{new Date(p.created_at).toLocaleString()}</p>
-                  </button>
-                ))}
+                {[...pedidos]
+                  .sort((a, b) => (a.estado === 'listo' ? -1 : (b.estado === 'listo' ? 1 : 0)))
+                  .map(p => {
+                    const isReady = p.estado === 'listo'
+                    const isPicking = p.estado === 'picking'
+                    
+                    return (
+                      <button 
+                        key={p.id}
+                        onClick={() => handleSelectPedido(p)}
+                        className={`w-full text-left p-5 rounded-2xl border transition-all active:scale-[0.98] flex flex-col gap-3 ${
+                          pedidoSeleccionado?.id === p.id 
+                            ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.1)]' 
+                            : isReady 
+                              ? 'bg-neutral-900 border-emerald-500/30' 
+                              : 'bg-neutral-900 border-neutral-800'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                                isReady ? 'bg-emerald-500 text-black' : isPicking ? 'bg-blue-600 text-white' : 'bg-neutral-800 text-neutral-500'
+                              }`}>
+                                {isReady ? 'LISTO PARA RETIRO' : isPicking ? 'EN PREPARACIÓN' : 'PENDIENTE'}
+                              </span>
+                              {isReady && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+                            </div>
+                            <span className="text-sm font-black text-white uppercase italic tracking-tighter">
+                              Plano: {p.isometricos?.codigo || 'VALE GENERAL'}
+                            </span>
+                          </div>
+                          <ChevronRight size={14} className={isReady ? 'text-emerald-500' : 'text-neutral-700'} />
+                        </div>
+                        
+                        <div className="flex flex-col gap-1 px-1">
+                          {p.pedido_items.slice(0, 3).map((item: any) => (
+                            <div key={item.id} className="flex justify-between items-center text-[9px] font-bold text-neutral-500">
+                              <span className="truncate mr-4">{item.materiales?.descripcion}</span>
+                              <span className="shrink-0">{item.cantidad_solicitada - (item.cantidad_entregada || 0)} {item.materiales?.unidad}</span>
+                            </div>
+                          ))}
+                          {p.pedido_items.length > 3 && (
+                            <span className="text-[7px] text-neutral-700 italic">+{p.pedido_items.length - 3} más...</span>
+                          )}
+                        </div>
+
+                        {isReady && (
+                          <div className="mt-2 w-full bg-emerald-500 text-black py-2.5 rounded-xl text-center text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">
+                            Entregar Ahora
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
               </div>
             )}
 

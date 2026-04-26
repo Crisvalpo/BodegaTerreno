@@ -87,12 +87,15 @@ export default function MisPedidos() {
             pedidos.map(p => {
               const status = getStatusInfo(p.estado)
               
-              // Cálculo de Progreso
-              const totalReq = p.pedido_items.reduce((acc: number, i: any) => acc + Number(i.cantidad_solicitada), 0)
-              const totalGot = p.pedido_items.reduce((acc: number, i: any) => acc + Number(i.cantidad_entregada), 0)
-              const progress = Math.round((totalGot / (totalReq || 1)) * 100)
+              const calcularAvance = (pedido: any) => {
+                if (pedido.estado === 'listo' || pedido.estado === 'entregado') return 100
+                const items = pedido.pedido_items || []
+                const total = items.reduce((acc: number, i: any) => acc + Number(i.cantidad_solicitada), 0)
+                const entregado = items.reduce((acc: number, i: any) => acc + Number(i.cantidad_entregada || 0), 0)
+                return total > 0 ? Math.round((entregado / total) * 100) : 0
+              }
 
-              // Estados para el Stepper
+              const progress = calcularAvance(p)
               const steps = ['pendiente', 'picking', 'listo', 'entregado']
               const currentStepIndex = steps.indexOf(p.estado)
 

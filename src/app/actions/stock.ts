@@ -48,7 +48,7 @@ export async function searchOrdersByRutAction(rut: string) {
         )
       `)
       .or(`rut.eq.${rut},rut.ilike.${cleanRut}%,rut.ilike.${pureRut}%`, { foreignTable: 'usuarios' })
-      .eq('estado', 'pendiente')
+      .in('estado', ['pendiente', 'picking', 'listo'])
       .order('created_at', { ascending: true })
 
     if (pError) throw pError
