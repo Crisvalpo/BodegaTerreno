@@ -246,10 +246,15 @@ export default function MesonPage() {
 
       if (!isDirectMode && pedidoSeleccionado) {
         const { data: updated } = await supabase.from('pedido_items').select('cantidad_solicitada, cantidad_entregada').eq('pedido_id', pedidoSeleccionado.id)
-        if (updated?.every(i => Number(i.cantidad_entregada) >= Number(i.cantidad_solicitada))) {
+        const allDone = updated?.every(i => Number(i.cantidad_entregada) >= Number(i.cantidad_solicitada))
+
+        if (allDone) {
           await supabase.from('pedidos').update({ estado: 'entregado', delivered_at: new Date().toISOString() }).eq('id', pedidoSeleccionado.id)
+          setAllPendientes(prev => prev.filter(p => p.id !== pedidoSeleccionado.id))
         } else {
           await supabase.from('pedidos').update({ estado: 'picking' }).eq('id', pedidoSeleccionado.id)
+          // Forzar cambio a 'picking' en el estado local para que el botón cambie a "Ir al Despacho"
+          setAllPendientes(prev => prev.map(p => p.id === pedidoSeleccionado.id ? { ...p, estado: 'picking' } : p))
         }
       }
 
