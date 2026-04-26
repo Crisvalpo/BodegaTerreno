@@ -81,7 +81,7 @@ export default function Home() {
     )
   }
 
-  const isAuthorized = user.nombre.toLowerCase().includes('cristian luke') || user.nombre.toLowerCase().includes('felipe gonzales')
+  const isAuthorized = user.rol === 'admin'
 
   return (
     <main className="min-h-screen bg-[#050505] text-neutral-200 font-sans selection:bg-emerald-500/30 flex justify-center">
