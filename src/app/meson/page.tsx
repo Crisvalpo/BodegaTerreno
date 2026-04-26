@@ -21,6 +21,7 @@ type Pedido = {
   pedido_items: {
     id: string
     cantidad_solicitada: number
+    cantidad_entregada: number
     materiales: { 
       id: string
       ident_code: string
