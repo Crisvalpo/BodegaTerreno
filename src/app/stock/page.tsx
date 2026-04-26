@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { 
   LayoutDashboard, 
   Search, 
@@ -29,6 +30,10 @@ type StockItem = {
     ident_code: string
     descripcion: string
     part_group: string
+    input_1?: string
+    input_2?: string
+    input_3?: string
+    input_4?: string
   }
   ubicaciones: {
     zona: string
@@ -38,6 +43,7 @@ type StockItem = {
 }
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams()
   const [stock, setStock] = useState<StockItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -48,10 +54,14 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'stock' | 'history' | 'isos'>('stock')
 
   useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'history') setActiveTab('history')
+    if (tab === 'isos') setActiveTab('isos')
+    
     fetchStock()
     fetchHistory()
     fetchIsometricConsumption()
-  }, [])
+  }, [searchParams])
 
   async function fetchHistory() {
     const { data } = await supabase
@@ -296,8 +306,15 @@ export default function DashboardPage() {
                         <tr key={idx} className="hover:bg-white/5 transition-colors group">
                           <td className="px-6 py-5">
                             <div className="flex flex-col">
-                              <span className="text-white font-black text-lg">{item.materiales?.ident_code}</span>
-                              <span className="text-neutral-500 text-xs line-clamp-1">{item.materiales?.descripcion}</span>
+                              <div className="flex items-center gap-3 mb-1">
+                                <span className="text-white font-black text-lg tracking-tighter uppercase italic">{item.materiales?.ident_code}</span>
+                                {(item.materiales?.input_1 || item.materiales?.input_3) && (
+                                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase italic">
+                                    {item.materiales.input_1} {item.materiales.input_2 !== '0' && item.materiales.input_2 ? `x ${item.materiales.input_2}` : ''} | {item.materiales.input_3}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-neutral-500 text-xs font-bold uppercase italic line-clamp-1">{item.materiales?.descripcion}</span>
                             </div>
                           </td>
                           <td className="px-6 py-5">
@@ -337,8 +354,15 @@ export default function DashboardPage() {
                     <div key={idx} className="p-5 active:bg-white/5 transition-colors">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 className="text-xl font-black text-white">{item.materiales?.ident_code}</h3>
-                          <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">{item.materiales?.part_group}</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">{item.materiales?.ident_code}</h3>
+                            {(item.materiales?.input_1 || item.materiales?.input_3) && (
+                              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase italic border border-emerald-500/20">
+                                {item.materiales.input_1} | {item.materiales.input_3}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-neutral-500 uppercase font-black tracking-widest">{item.materiales?.part_group}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-2xl font-black text-emerald-400">{item.cantidad}</p>

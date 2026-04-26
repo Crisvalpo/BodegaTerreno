@@ -17,7 +17,7 @@ export async function GET() {
         id,
         cantidad,
         cantidad_reservada,
-        materiales (ident_code, descripcion, part_group),
+        materiales (ident_code, descripcion, part_group, input_1, input_2, input_3, input_4),
         ubicaciones (zona, rack, nivel)
       `)
     

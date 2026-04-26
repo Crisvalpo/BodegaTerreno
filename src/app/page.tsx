@@ -1,47 +1,81 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { 
-  LayoutDashboard, 
-  PackagePlus, 
-  HandHeart, 
+  User, 
+  LogOut, 
   Package, 
-  LogOut,
-  User,
+  ClipboardList, 
+  History, 
+  ChevronRight, 
+  Database, 
+  PackagePlus, 
   ShieldCheck,
-  ChevronRight,
-  ScanLine,
-  Container
+  Activity,
+  Settings
 } from 'lucide-react'
+import Cookies from 'js-cookie'
+import Link from 'next/link'
 
 export default function Home() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({
+    hoy: 0,
+    pendientes: 0,
+    transito: 0,
+    critico: 0
+  })
 
   useEffect(() => {
     const storedUser = localStorage.getItem('bodega_user')
     if (!storedUser) {
       router.push('/login')
-    } else {
-      setUser(JSON.parse(storedUser))
+      return
     }
+    setUser(JSON.parse(storedUser))
     setIsLoading(false)
-  }, [router])
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      
+      const { count: pedidosHoy } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).gte('created_at', today)
+      const { count: pendientes } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente')
+      const { count: transito } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('estado', 'parcial')
+      
+      // Simulación de crítico basada en existencias bajas
+      const { data: existencias } = await supabase.from('existencias').select('cantidad')
+      const criticoCount = existencias?.filter(e => e.cantidad < 5).length || 0
+
+      setStats({
+        hoy: pedidosHoy || 0,
+        pendientes: pendientes || 0,
+        transito: transito || 0,
+        critico: criticoCount
+      })
+    } catch (e) {
+      console.error('Error fetching stats:', e)
+    }
+  }
 
   const handleLogout = () => {
+    Cookies.remove('user')
     localStorage.removeItem('bodega_user')
     router.push('/login')
   }
 
   if (isLoading || !user) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <Container className="w-12 h-12 text-emerald-500" />
-          <p className="text-neutral-500 font-bold uppercase tracking-widest text-[10px]">Cargando Sistema...</p>
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Database className="w-12 h-12 text-emerald-500 animate-pulse" />
+          <p className="text-neutral-700 font-black uppercase tracking-[0.4em] text-[10px]">Cargando Sistema...</p>
         </div>
       </div>
     )
@@ -51,112 +85,102 @@ export default function Home() {
   const isBodeguero = user.rol === 'bodeguero' || isAdmin
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white p-6 md:p-12 relative overflow-hidden">
-      {/* Background Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-600/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-600/5 blur-[120px] pointer-events-none" />
-
-      <div className="max-w-6xl mx-auto relative z-10">
+    <main className="min-h-screen bg-[#050505] text-neutral-200 font-sans selection:bg-emerald-500/30 flex justify-center">
+      {/* Contenedor Fijo de App Móvil / Desktop Adaptado */}
+      <div className="w-full max-w-md md:max-w-2xl bg-[#0a0a0a] min-h-screen border-x border-neutral-900 shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col p-6 relative">
         
-        {/* Header Superior Premium */}
-        <header className="flex items-start justify-between mb-12 animate-in fade-in slide-in-from-top-6 duration-700">
-          <div className="flex items-center gap-6">
-            <div className="relative group">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="w-20 h-20 rounded-[2.2rem] bg-neutral-900/50 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-2xl relative z-10">
-                <User className="w-10 h-10 text-emerald-500" />
-              </div>
+        {/* Header de la App */}
+        <header className="flex items-center justify-between mb-10 pt-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-neutral-900 border border-neutral-800 rounded-2xl flex items-center justify-center shadow-xl">
+              <User className="w-7 h-7 text-emerald-500" />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-3 mb-1">
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg ${
-                  isAdmin ? 'bg-emerald-500 text-neutral-950 shadow-emerald-500/20' : isBodeguero ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-amber-500 text-neutral-950 shadow-amber-500/20'
-                }`}>
-                  {user.rol}
-                </span>
-                <span className="text-neutral-600 text-[10px] font-black uppercase tracking-widest">{user.rut}</span>
-              </div>
-              <h1 className="text-4xl font-black tracking-tighter leading-none italic">
-                {user.nombre.split(' ')[0]} <span className="text-neutral-500 not-italic">{user.nombre.split(' ')[1] || ''}</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 leading-none mb-1">{user.rol}</span>
+              <h1 className="text-2xl font-black tracking-tighter text-white leading-none uppercase italic">
+                {user.nombre.split(' ')[0]}
               </h1>
             </div>
           </div>
-          
-          <button 
-            onClick={handleLogout}
-            className="p-4 rounded-2.5xl bg-neutral-900/50 border border-white/5 text-neutral-500 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-all shadow-xl group"
-            title="Cerrar Sesión"
-          >
-            <LogOut className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link 
+                href="/admin"
+                className="w-12 h-12 bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-600 flex items-center justify-center hover:text-emerald-500 hover:bg-emerald-500/10 transition-all active:scale-90"
+              >
+                <Settings size={20} />
+              </Link>
+            )}
+            <button 
+              onClick={handleLogout}
+              className="w-12 h-12 bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-600 flex items-center justify-center hover:text-white hover:bg-rose-500/10 transition-all active:scale-90"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
         </header>
 
-        {/* Quick Stats / KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12 animate-in fade-in slide-in-from-top-8 duration-700 delay-100">
-          <StatCard label="Pedidos Hoy" value="12" color="emerald" />
-          <StatCard label="Pendientes" value="04" color="amber" />
-          <StatCard label="En Tránsito" value="08" color="blue" />
-          <StatCard label="Stock Crítico" value="02" color="rose" />
+        {/* Stats de App (Grid Adaptativo) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <StatCard label="Pedidos Hoy" value={stats.hoy.toString().padStart(2, '0')} accent="emerald" />
+          <StatCard label="Pendientes" value={stats.pendientes.toString().padStart(2, '0')} accent="blue" />
+          <StatCard label="En Tránsito" value={stats.transito.toString().padStart(2, '0')} accent="neutral" />
+          <StatCard label="Crítico" value={stats.critico.toString().padStart(2, '0')} accent="rose" />
         </div>
 
-        {/* Action Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200">
+        {/* Menú de App (Grid 1 o 2 columnas) */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 content-start overflow-y-auto custom-scrollbar pb-10">
+          
+          {/* PRIORIDAD 1: RECEPCIÓN */}
+          <MenuCard 
+            href="/recepcion"
+            title="Recepción"
+            desc="Ingreso de materiales."
+            icon={<PackagePlus size={22} />}
+            accent="blue"
+          />
+
           <MenuCard 
             href="/pedidos/nuevo"
             title="Pre-Pedido"
-            desc="Solicitud de materiales desde terreno."
-            icon={<Package className="w-8 h-8" />}
-            color="amber"
-          />
-
-          <MenuCard 
-            href="/dashboard"
-            title="Stock & Métricas"
-            desc="Consulta de existencias en tiempo real."
-            icon={<LayoutDashboard className="w-8 h-8" />}
-            color="purple"
+            desc="Solicitud de operarios."
+            icon={<Package size={22} />}
+            accent="emerald"
           />
 
           {isBodeguero && (
-            <>
-              <MenuCard 
-                href="/meson"
-                title="Mesón Bodega"
-                desc="Gestión de despachos y entregas."
-                icon={<HandHeart className="w-8 h-8" />}
-                color="blue"
-              />
-              <MenuCard 
-                href="/recepcion"
-                title="Recepción"
-                desc="Ingreso masivo de materiales."
-                icon={<PackagePlus className="w-8 h-8" />}
-                color="emerald"
-              />
-            </>
-          )}
-
-          {isAdmin && (
             <MenuCard 
-              href="/admin/usuarios"
-              title="Admin Usuarios"
-              desc="Control total de personal y roles."
-              icon={<ShieldCheck className="w-8 h-8" />}
-              color="rose"
+              href="/meson"
+              title="Mesón Bodega"
+              desc="Terminal de despacho."
+              icon={<Activity size={22} />}
+              accent="emerald"
             />
           )}
+
+          <MenuCard 
+            href="/stock"
+            title="Stock & KPI"
+            desc="Consulta de existencias."
+            icon={<Database size={22} />}
+            accent="neutral"
+          />
+
+          <MenuCard 
+            href="/stock?tab=history"
+            title="Historial"
+            desc="Registro de movimientos."
+            icon={<History size={22} />}
+            accent="neutral"
+          />
         </div>
 
-        <footer className="mt-20 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex flex-col gap-1">
-            <p className="text-[10px] text-neutral-700 font-black uppercase tracking-[0.4em]">BODEGA TERRENO PREMIMUM v2.5</p>
-            <p className="text-[8px] text-neutral-800 font-bold uppercase tracking-widest">Desarrollado para Control de Obras Piping</p>
-          </div>
-          <div className="flex gap-8">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,1)] animate-pulse" />
-              <span className="text-[10px] text-neutral-600 font-black uppercase tracking-widest">En Línea</span>
-            </div>
+        {/* Footer de App */}
+        <footer className="pt-6 border-t border-neutral-900 flex flex-col items-center gap-2 opacity-20">
+          <p className="text-[9px] text-neutral-500 font-black uppercase tracking-[0.3em]">Bodega Terreno</p>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="text-[8px] font-bold text-neutral-700 uppercase italic">Conectado</span>
           </div>
         </footer>
       </div>
@@ -164,41 +188,51 @@ export default function Home() {
   )
 }
 
-function StatCard({ label, value, color }: { label: string, value: string, color: string }) {
-  const colors: any = {
-    emerald: 'text-emerald-400 border-emerald-500/10 bg-emerald-500/5',
-    amber: 'text-amber-400 border-amber-500/10 bg-amber-500/5',
-    blue: 'text-blue-400 border-blue-500/10 bg-blue-500/5',
-    rose: 'text-rose-400 border-rose-500/10 bg-rose-500/5'
+function StatCard({ label, value, accent }: { label: string, value: string, accent: 'emerald' | 'blue' | 'rose' | 'neutral' }) {
+  const accents = {
+    emerald: 'text-emerald-500 border-emerald-500/10 bg-emerald-500/5',
+    blue: 'text-blue-500 border-blue-500/10 bg-blue-500/5',
+    rose: 'text-rose-500 border-rose-500/10 bg-rose-500/5',
+    neutral: 'text-neutral-500 border-neutral-800 bg-neutral-900/40'
   }
   return (
-    <div className={`p-6 rounded-[2rem] border backdrop-blur-xl ${colors[color]} flex flex-col items-center shadow-2xl`}>
-      <span className="text-3xl font-black tracking-tighter mb-1">{value}</span>
-      <span className="text-[9px] font-black uppercase tracking-widest opacity-60 text-center">{label}</span>
+    <div className={`p-5 rounded-xl border flex flex-col items-center justify-center ${accents[accent]}`}>
+      <span className="text-2xl font-mono font-black italic">{value}</span>
+      <span className="text-[8px] font-black uppercase tracking-widest opacity-40">{label}</span>
     </div>
   )
 }
 
-function MenuCard({ href, title, desc, icon, color }: { href: string, title: string, desc: string, icon: any, color: string }) {
-  const colors: any = {
-    amber: 'text-amber-500 bg-amber-500/10 group-hover:bg-amber-500/20 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]',
-    blue: 'text-blue-500 bg-blue-500/10 group-hover:bg-blue-500/20 group-hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]',
-    emerald: 'text-emerald-500 bg-emerald-500/10 group-hover:bg-emerald-500/20 group-hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]',
-    purple: 'text-purple-500 bg-purple-500/10 group-hover:bg-purple-500/20 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.15)]',
-    rose: 'text-rose-500 bg-rose-500/10 group-hover:bg-rose-500/20 group-hover:shadow-[0_0_30px_rgba(244,63,94,0.15)]',
+function MenuCard({ href, title, desc, icon, accent }: { href: string, title: string, desc: string, icon: any, accent: 'emerald' | 'blue' | 'rose' | 'neutral' }) {
+  const accents = {
+    emerald: 'hover:border-emerald-500/30 active:bg-emerald-500/5',
+    blue: 'hover:border-blue-500/30 active:bg-blue-500/5',
+    rose: 'hover:border-rose-500/30 active:bg-rose-500/5',
+    neutral: 'hover:border-neutral-500/30 active:bg-neutral-500/5'
   }
   
+  const iconColors = {
+    emerald: 'text-emerald-500',
+    blue: 'text-blue-500',
+    rose: 'text-rose-500',
+    neutral: 'text-neutral-500'
+  }
+
   return (
-    <Link href={href} className="group relative">
-      <div className={`h-full p-8 bg-neutral-900/40 backdrop-blur-3xl rounded-[3rem] border border-white/5 transition-all duration-500 flex flex-col ${colors[color]}`}>
-        <div className="w-16 h-16 rounded-2.5xl flex items-center justify-center mb-8 bg-neutral-950 border border-white/5 shadow-inner">
+    <Link href={href} className="group">
+      <div className={`bg-neutral-900 border border-neutral-800 rounded-xl p-5 h-full transition-all flex items-center gap-5 ${accents[accent]}`}>
+        <div className={`w-12 h-12 bg-black border border-neutral-800 rounded-lg flex items-center justify-center shrink-0 ${iconColors[accent]}`}>
           {icon}
         </div>
-        <h3 className="text-2xl font-black text-white mb-2 tracking-tight group-hover:translate-x-1 transition-transform italic">{title}</h3>
-        <p className="text-sm text-neutral-500 font-medium leading-relaxed mb-6">{desc}</p>
-        <div className="mt-auto flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-white transition-colors">
-          Entrar Módulo <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+        <div className="flex-1">
+          <h3 className="text-lg font-black text-white tracking-tighter uppercase italic leading-none mb-1">
+            {title}
+          </h3>
+          <p className="text-[10px] text-neutral-500 font-medium leading-none uppercase italic">
+            {desc}
+          </p>
         </div>
+        <ChevronRight size={14} className="text-neutral-800 group-hover:text-neutral-400 group-hover:translate-x-1 transition-all" />
       </div>
     </Link>
   )
