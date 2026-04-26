@@ -37,6 +37,7 @@ export default function NuevoPedido() {
   const [materials, setMaterials] = useState<Material[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [cart, setCart] = useState<{material: Material, cantidad: number, isometrico: any}[]>([])
+  const [localQtys, setLocalQtys] = useState<Record<string, number>>({})
 
   // Recuperar sesión automáticamente
   useEffect(() => {
@@ -56,12 +57,22 @@ export default function NuevoPedido() {
   // Carga de materiales
   useEffect(() => {
     const fetchMaterials = async () => {
+      if (searchQuery.length < 3) {
+        setMaterials([])
+        return
+      }
       const { data } = await supabase
         .from('materiales')
         .select('*, existencias(cantidad)')
         .or(`ident_code.ilike.%${searchQuery}%,descripcion.ilike.%${searchQuery}%`)
         .limit(20)
-      setMaterials(data || [])
+      
+      if (data) {
+        const qtys: Record<string, number> = {}
+        data.forEach(m => { qtys[m.id] = 1 })
+        setLocalQtys(prev => ({ ...qtys, ...prev }))
+        setMaterials(data)
+      }
     }
     if (step === 3) fetchMaterials()
   }, [searchQuery, step])
@@ -99,12 +110,20 @@ export default function NuevoPedido() {
 
   const addToCart = (m: Material) => {
     if (!isometrico) return toast.error('Selecciona un Isométrico primero')
+    const qty = localQtys[m.id] || 1
     setCart(prev => {
       const existing = prev.find(i => i.material.id === m.id && i.isometrico.id === isometrico.id)
-      if (existing) return prev.map(i => (i.material.id === m.id && i.isometrico.id === isometrico.id) ? { ...i, cantidad: i.cantidad + 1 } : i)
-      return [...prev, { material: m, cantidad: 1, isometrico }]
+      if (existing) return prev.map(i => (i.material.id === m.id && i.isometrico.id === isometrico.id) ? { ...i, cantidad: i.cantidad + qty } : i)
+      return [...prev, { material: m, cantidad: qty, isometrico }]
     })
-    toast.success(`Añadido a ${isometrico.codigo}`)
+    toast.success(`${qty}x ${m.ident_code} añadido`)
+  }
+
+  const updateLocalQty = (id: string, delta: number) => {
+    setLocalQtys(prev => ({
+      ...prev,
+      [id]: Math.max(1, (prev[id] || 1) + delta)
+    }))
   }
 
   const createPedido = async () => {
@@ -292,14 +311,33 @@ export default function NuevoPedido() {
                           Disponible: {stockTotal} {m.unidad}
                         </p>
                       </div>
-                      <button 
-                        onClick={() => addToCart(m)} 
-                        className={`p-3 rounded-lg transition-all active:scale-90 ${
-                          isOutOfStock ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'
-                        }`}
-                      >
-                        <Plus size={18} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-black border border-neutral-800 rounded-lg overflow-hidden h-10">
+                          <button 
+                            onClick={() => updateLocalQty(m.id, -1)}
+                            className="w-8 h-full flex items-center justify-center hover:bg-neutral-900 text-neutral-500 active:text-white transition-colors"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <div className="w-10 h-full flex items-center justify-center border-x border-neutral-800">
+                            <span className="text-xs font-black text-white">{localQtys[m.id] || 1}</span>
+                          </div>
+                          <button 
+                            onClick={() => updateLocalQty(m.id, 1)}
+                            className="w-8 h-full flex items-center justify-center hover:bg-neutral-900 text-neutral-500 active:text-white transition-colors"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                        <button 
+                          onClick={() => addToCart(m)} 
+                          className={`p-3 rounded-lg transition-all active:scale-90 ${
+                            isOutOfStock ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'
+                          }`}
+                        >
+                          <ShoppingBag size={18} />
+                        </button>
+                      </div>
                     </div>
                   )
                 })}
