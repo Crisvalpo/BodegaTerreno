@@ -96,7 +96,7 @@ export default function LoginPage() {
                   <input 
                     type="text" 
                     value={rut}
-                    onChange={e => setRut(e.target.value)}
+                    onChange={e => setRut(e.target.value.replace(/\./g, ''))}
                     placeholder="12345678-1"
                     disabled={isRegistering}
                     className="w-full bg-neutral-950/50 border-2 border-neutral-800 rounded-[2rem] pl-16 pr-6 py-6 text-2xl font-black text-white focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-neutral-800 tracking-tight disabled:opacity-50"

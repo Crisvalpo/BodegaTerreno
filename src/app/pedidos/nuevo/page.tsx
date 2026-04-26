@@ -348,7 +348,7 @@ export default function NuevoPedidoPage() {
                   <input 
                     type="text" 
                     value={rut}
-                    onChange={e => setRut(e.target.value)}
+                    onChange={e => setRut(e.target.value.replace(/\./g, ''))}
                     className="w-full mt-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
                     placeholder="Ej: 123456789"
                   />

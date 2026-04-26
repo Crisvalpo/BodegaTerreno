@@ -369,7 +369,7 @@ export default function MesonPage() {
                   type="text" 
                   value={rutBusqueda}
                   onChange={e => {
-                    const val = e.target.value
+                    const val = e.target.value.replace(/\./g, '')
                     setRutBusqueda(val)
                     // Si parece una URL de escaneo (muy larga), parsear al vuelo
                     if (val.length > 20 && val.includes('http')) {
