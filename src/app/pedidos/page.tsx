@@ -110,8 +110,8 @@ export default function MisPedidos() {
                     {p.pedido_items.map((item: any) => (
                       <div key={item.id} className="flex justify-between items-center text-[10px] font-bold">
                         <div className="flex flex-col">
-                          <span className="text-white uppercase truncate max-w-[180px]">{item.materiales.descripcion}</span>
-                          <span className="text-[8px] text-neutral-600 font-mono">Solicitado: {item.cantidad_solicitada} {item.materiales.unidad}</span>
+                          <span className="text-white uppercase truncate max-w-[180px]">{item.materiales?.descripcion || 'Material no encontrado'}</span>
+                          <span className="text-[8px] text-neutral-600 font-mono">Solicitado: {item.cantidad_solicitada} {item.materiales?.unidad || ''}</span>
                         </div>
                         <div className="flex flex-col items-end">
                           <span className={`text-[10px] ${item.cantidad_entregada >= item.cantidad_solicitada ? 'text-emerald-500' : 'text-neutral-500'}`}>

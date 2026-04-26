@@ -462,15 +462,15 @@ export default function MesonPage() {
                         <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic mb-1">
                           {p.estado === 'listo' ? '🟢 LISTO' : p.estado === 'picking' ? '🔵 EN PREPARACIÓN' : '🟡 PENDIENTE'}
                         </span>
-                        <h4 className="text-sm font-black text-white leading-none uppercase italic">{p.usuarios.nombre}</h4>
-                        <p className="text-[10px] font-mono text-neutral-500 mt-1">{p.isometricos.codigo}</p>
+                        <h4 className="text-sm font-black text-white leading-none uppercase italic">{p.usuarios?.nombre || 'Usuario Desconocido'}</h4>
+                        <p className="text-[10px] font-mono text-neutral-500 mt-1">{p.isometricos?.codigo || 'Sin Isométrico'}</p>
                       </div>
                       <span className="text-[8px] font-bold text-neutral-700 uppercase">{new Date(p.created_at).toLocaleTimeString()}</span>
                     </div>
                     
                     <div className="flex flex-col gap-2 bg-black/40 rounded-xl p-3">
                       {p.pedido_items.slice(0, 5).map(item => {
-                        const locs = item.materiales.existencias
+                        const locs = item.materiales?.existencias
                           ?.filter((ex: any) => ex.cantidad > 0)
                           .map((ex: any) => `${ex.ubicaciones.zona}-${ex.ubicaciones.rack}${ex.ubicaciones.nivel}`)
                           .join(' | ') || 'Sin ubicación'
@@ -478,8 +478,8 @@ export default function MesonPage() {
                         return (
                           <div key={item.id} className="flex flex-col gap-0.5 border-b border-white/5 pb-2 last:border-0 last:pb-0">
                             <div className="flex justify-between items-center text-[10px] font-bold">
-                              <span className="text-neutral-500 truncate mr-4">{item.materiales.descripcion}</span>
-                              <span className="text-white shrink-0">{item.cantidad_solicitada} {item.materiales.unidad}</span>
+                              <span className="text-neutral-500 truncate mr-4">{item.materiales?.descripcion || 'Material no encontrado'}</span>
+                              <span className="text-white shrink-0">{item.cantidad_solicitada} {item.materiales?.unidad || ''}</span>
                             </div>
                             <div className="flex items-center gap-1 text-[8px] font-black text-amber-500/60 uppercase italic">
                               <MapPin size={8} /> {locs}
