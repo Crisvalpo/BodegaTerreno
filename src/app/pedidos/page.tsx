@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { 
   Package, Clock, CheckCircle2, ChevronRight, 
   X, ShoppingBag, Loader2, User as UserIcon,
-  ArrowLeft, AlertCircle
+  ArrowLeft, AlertCircle, Plus
 } from 'lucide-react'
 import Link from 'next/link'
 
