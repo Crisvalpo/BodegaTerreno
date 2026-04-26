@@ -238,7 +238,9 @@ export default function MesonPage() {
       
       if (isDirectMode && !currentUserId) {
         const { data: newUser, error: uError } = await supabase.from('usuarios').insert({ 
-          rut: directUser.rut, nombre: directUser.nombre, telefono: directUser.telefono 
+          rut: directUser.rut, 
+          nombre: directUser.nombre, 
+          telefono: `+569${directUser.telefono}`
         }).select().single()
         if (uError) throw uError
         currentUserId = newUser.id
@@ -438,14 +440,22 @@ export default function MesonPage() {
                       onChange={e => setDirectUser({...directUser, nombre: e.target.value})}
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none"
                     />
-                    <input 
-                      type="tel"
-                      placeholder="Teléfono (Ej: +569...)"
-                      value={directUser.telefono}
-                      onChange={e => setDirectUser({...directUser, telefono: e.target.value})}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none"
-                    />
-                    <p className="text-[10px] text-neutral-600 mt-1 uppercase font-bold">Registro de nuevo trabajador</p>
+                    <div className="flex gap-2">
+                      <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-3 text-xs font-black text-amber-500 flex items-center justify-center">
+                        +569
+                      </div>
+                      <input 
+                        type="tel"
+                        placeholder="12345678"
+                        value={directUser.telefono}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 8)
+                          setDirectUser({...directUser, telefono: val})
+                        }}
+                        className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none tracking-widest"
+                      />
+                    </div>
+                    <p className="text-[9px] text-neutral-600 mt-1 uppercase font-bold">Registro de nuevo trabajador (Ingresa 8 dígitos)</p>
                   </div>
               )}
               

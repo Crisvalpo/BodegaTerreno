@@ -60,7 +60,7 @@ export default function LoginPage() {
         .insert({
           rut,
           nombre,
-          telefono,
+          telefono: `+569${telefono}`,
           rol: 'terreno' // Por defecto solo terreno
         })
         .select()
@@ -118,13 +118,22 @@ export default function LoginPage() {
                   </div>
                   <div className="space-y-3">
                     <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">WhatsApp / Teléfono</label>
-                    <input 
-                      type="text" 
-                      value={telefono}
-                      onChange={e => setTelefono(e.target.value)}
-                      placeholder="+569..."
-                      className="w-full bg-neutral-950/50 border-2 border-neutral-800 rounded-[1.5rem] px-6 py-5 text-lg font-bold text-white focus:outline-none focus:border-emerald-500/50 transition-all"
-                    />
+                    <div className="flex gap-2">
+                      <div className="bg-neutral-950/50 border-2 border-neutral-800 rounded-[1.5rem] px-5 py-5 text-lg font-black text-emerald-500 flex items-center justify-center min-w-[80px]">
+                        +569
+                      </div>
+                      <input 
+                        type="tel" 
+                        value={telefono}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 8)
+                          setTelefono(val)
+                        }}
+                        placeholder="12345678"
+                        className="flex-1 bg-neutral-950/50 border-2 border-neutral-800 rounded-[1.5rem] px-6 py-5 text-lg font-bold text-white focus:outline-none focus:border-emerald-500/50 transition-all tracking-widest"
+                      />
+                    </div>
+                    <p className="text-[9px] text-neutral-600 font-bold uppercase ml-4">Ingresa solo los 8 dígitos restantes</p>
                   </div>
                 </div>
               )}
