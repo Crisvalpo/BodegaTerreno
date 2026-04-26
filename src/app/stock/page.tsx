@@ -108,7 +108,7 @@ function StockContent() {
       // 3. Agrupar manualmente
       const agg: any = {}
       movs.forEach((mov: any) => {
-        const isoCode = pedidosMap[mov.referencia_id] || 'SIN ISOMÉTRICO'
+        const isoCode = pedidosMap[mov.referencia_id] || 'VALES GENERALES / MISCELÁNEOS'
         const ident = mov.materiales?.ident_code
         
         if (!agg[isoCode]) agg[isoCode] = {}
@@ -404,7 +404,9 @@ function StockContent() {
               isometricConsumption.map((isoGroup, idx) => (
                 <div key={idx} className="glass rounded-3xl border border-white/5 overflow-hidden shadow-xl">
                   <div className="bg-white/5 px-8 py-4 flex items-center justify-between border-b border-white/5">
-                    <h3 className="text-xl font-black text-blue-400 flex items-center gap-3 italic">
+                    <h3 className={`text-xl font-black flex items-center gap-3 italic ${
+                      isoGroup.iso === 'VALES GENERALES / MISCELÁNEOS' ? 'text-neutral-500' : 'text-blue-400'
+                    }`}>
                       <Map size={20} /> {isoGroup.iso}
                     </h3>
                     <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Resumen de Consumo</span>

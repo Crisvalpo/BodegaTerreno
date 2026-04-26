@@ -468,7 +468,7 @@ export default function MesonPage() {
                           {p.estado === 'listo' ? '🟢 LISTO' : p.estado === 'picking' ? '🔵 EN PREPARACIÓN' : '🟡 PENDIENTE'}
                         </span>
                         <h4 className="text-sm font-black text-white leading-none uppercase italic">{p.usuarios?.nombre || 'Usuario Desconocido'}</h4>
-                        <p className="text-[10px] font-mono text-neutral-500 mt-1">{p.isometricos?.codigo || 'Sin Isométrico'}</p>
+                        <p className="text-[10px] font-mono text-neutral-500 mt-1">{p.isometricos?.codigo || 'VALE GENERAL / MISCELÁNEO'}</p>
                       </div>
                       <span className="text-[8px] font-bold text-neutral-700 uppercase">{new Date(p.created_at).toLocaleTimeString()}</span>
                     </div>
