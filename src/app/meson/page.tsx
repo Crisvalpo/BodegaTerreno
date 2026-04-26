@@ -55,7 +55,8 @@ export default function MesonPage() {
   const [itemSearch, setItemSearch] = useState('')
   const [foundItems, setFoundItems] = useState<any[]>([])
 
-  const [rutSuggestions, setRutSuggestions] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<'entrega' | 'pendientes'>('entrega')
+  const [allPendientes, setAllPendientes] = useState<Pedido[]>([])
   const [isScannerOpen, setIsScannerOpen] = useState(false)
 
   // DERIVADOS
@@ -94,6 +95,19 @@ export default function MesonPage() {
     }
   }, [pedidoSeleccionado])
 
+  // Cargar todos los pendientes
+  useEffect(() => {
+    const fetchAllPendientes = async () => {
+      const { data } = await supabase
+        .from('pedidos')
+        .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(*, existencias(*, ubicaciones(*))))')
+        .in('estado', ['pendiente', 'picking'])
+        .order('created_at', { ascending: false })
+      setAllPendientes(data as any || [])
+    }
+    if (activeTab === 'pendientes') fetchAllPendientes()
+  }, [activeTab])
+
   // Sugerencias de RUT
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -115,7 +129,7 @@ export default function MesonPage() {
       const formatted = formatRut(clean)
       setRutBusqueda(formatted) 
       
-      const res = await searchOrdersByRutAction(clean) // La acción ya debería manejar la búsqueda dual o por clean rut
+      const res = await searchOrdersByRutAction(clean)
       
       if (!res.success) throw new Error(res.error)
 
@@ -134,11 +148,22 @@ export default function MesonPage() {
       } else {
         setPedidos(pedidos as any)
         setIsDirectMode(false)
+        setActiveTab('entrega')
       }
     } catch (error: any) {
       toast.error('Error al buscar', { description: error.message })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const startPicking = async (pedidoId: string) => {
+    const { error } = await supabase.from('pedidos').update({ estado: 'picking' }).eq('id', pedidoId)
+    if (error) toast.error('Error al iniciar picking')
+    else {
+      toast.success('Pedido en preparación')
+      // Actualizar lista local
+      setAllPendientes(prev => prev.map(p => p.id === pedidoId ? { ...p, estado: 'picking' } : p))
     }
   }
 
@@ -239,8 +264,19 @@ export default function MesonPage() {
             <X size={20} className="text-neutral-500" />
           </Link>
           <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest leading-none mb-1 italic">Mesón Bodega</span>
-            <span className="text-[8px] font-bold text-neutral-600 uppercase tracking-[0.2em] leading-none">Terminal de Despacho</span>
+          <div className="flex gap-1 bg-neutral-900 p-1 rounded-xl">
+            <button 
+              onClick={() => setActiveTab('entrega')}
+              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'entrega' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-neutral-500'}`}
+            >
+              Entrega
+            </button>
+            <button 
+              onClick={() => setActiveTab('pendientes')}
+              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'pendientes' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-neutral-500'}`}
+            >
+              Pendientes ({allPendientes.length})
+            </button>
           </div>
           <button 
             onClick={() => setIsScannerOpen(true)}
@@ -251,6 +287,8 @@ export default function MesonPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-6">
+          {activeTab === 'entrega' ? (
+            <>
           {/* Barra de Búsqueda Móvil */}
           <div className="sticky top-2 z-40">
             <div className="relative group">
@@ -396,6 +434,62 @@ export default function MesonPage() {
                   </div>
                 )
               })}
+            </div>
+          )}
+          </>
+          ) : (
+            <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4">
+              {allPendientes.length === 0 ? (
+                <div className="py-20 flex flex-col items-center opacity-20">
+                  <PackageOpen size={48} className="mb-4" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-center">No hay pedidos pendientes</p>
+                </div>
+              ) : (
+                allPendientes.map(p => (
+                  <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-col gap-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic mb-1">
+                          {p.estado === 'picking' ? '🔵 EN PREPARACIÓN' : '🟡 PENDIENTE'}
+                        </span>
+                        <h4 className="text-sm font-black text-white leading-none uppercase italic">{p.usuarios.nombre}</h4>
+                        <p className="text-[10px] font-mono text-neutral-500 mt-1">{p.isometricos.codigo}</p>
+                      </div>
+                      <span className="text-[8px] font-bold text-neutral-700 uppercase">{new Date(p.created_at).toLocaleTimeString()}</span>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2 bg-black/40 rounded-xl p-3">
+                      {p.pedido_items.slice(0, 3).map(item => (
+                        <div key={item.id} className="flex justify-between items-center text-[10px] font-bold">
+                          <span className="text-neutral-500 truncate mr-4">{item.materiales.descripcion}</span>
+                          <span className="text-white shrink-0">{item.cantidad_solicitada} {item.materiales.unidad}</span>
+                        </div>
+                      ))}
+                      {p.pedido_items.length > 3 && (
+                        <span className="text-[8px] text-neutral-600 italic">+{p.pedido_items.length - 3} items más...</span>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      {p.estado === 'pendiente' ? (
+                        <button 
+                          onClick={() => startPicking(p.id)}
+                          className="flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/20"
+                        >
+                          Comenzar Picking
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleSelectPedido(p)}
+                          className="flex-1 bg-emerald-500 text-black font-black py-3 rounded-xl uppercase text-[9px] tracking-widest shadow-lg shadow-emerald-500/20"
+                        >
+                          Entregar Material
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>

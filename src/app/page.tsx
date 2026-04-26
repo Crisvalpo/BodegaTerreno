@@ -150,6 +150,15 @@ export default function Home() {
             accent="emerald"
           />
 
+          {/* MIS PEDIDOS (PÚBLICO) */}
+          <MenuCard 
+            href="/pedidos"
+            title="Mis Pedidos"
+            desc="Seguimiento de mis solicitudes."
+            icon={<ClipboardList size={22} />}
+            accent="blue"
+          />
+
           {/* MESÓN (SOLO AUTORIZADOS) */}
           {isAuthorized && (
             <MenuCard 
