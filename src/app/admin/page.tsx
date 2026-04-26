@@ -27,11 +27,11 @@ export default function AdminDashboard() {
       color: 'hover:border-purple-500/50'
     },
     {
-      title: 'Gestión de Usuarios',
-      desc: 'Control de accesos y perfiles (Próximamente).',
-      href: '#',
-      icon: <Users className="w-8 h-8 text-neutral-600" />,
-      color: 'opacity-50 pointer-events-none'
+      title: 'Maestro de Usuarios',
+      desc: 'Gestión de operarios y generación de tarjetas digitales con QR.',
+      href: '/admin/usuarios',
+      icon: <Users className="w-8 h-8 text-blue-400" />,
+      color: 'hover:border-blue-500/50'
     }
   ]
 

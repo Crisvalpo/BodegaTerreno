@@ -42,15 +42,70 @@ export default function RecepcionPage() {
     ubicacion_id: ''
   })
   const [isSaving, setIsSaving] = useState(false)
+  const [groups, setGroups] = useState<string[]>([])
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
+  
+  // Filtros de 4 niveles
+  const [filters, setFilters] = useState({ i1: '', i2: '', i3: '', i4: '' })
+  const [options, setOptions] = useState({ i1: [] as string[], i2: [] as string[], i3: [] as string[], i4: [] as string[] })
+  
+  const [groupMaterials, setGroupMaterials] = useState<any[]>([])
 
-  // Cargar ubicaciones al iniciar
+  // Cargar datos al iniciar
   useEffect(() => {
     async function fetchUbicaciones() {
       const { data } = await supabase.from('ubicaciones').select('*').order('zona', { ascending: true })
       setUbicaciones(data || [])
     }
+    async function fetchGroups() {
+      const { data } = await supabase.from('materiales').select('part_group')
+      const uniqueGroups = Array.from(new Set((data || []).map(m => m.part_group).filter(Boolean)))
+      setGroups(uniqueGroups as string[])
+    }
     fetchUbicaciones()
+    fetchGroups()
   }, [])
+
+  async function selectGroup(group: string) {
+    setSelectedGroup(group)
+    setFilters({ i1: '', i2: '', i3: '', i4: '' })
+    
+    // Cargar opciones para Input 1 basadas en el grupo
+    const { data } = await supabase
+      .from('materiales')
+      .select('input_1')
+      .eq('part_group', group)
+    
+    const unique = Array.from(new Set((data || []).map(m => m.input_1).filter(Boolean)))
+    setOptions(prev => ({ ...prev, i1: unique as string[], i2: [], i3: [], i4: [] }))
+    setGroupMaterials([])
+  }
+
+  async function updateFilter(key: 'i1' | 'i2' | 'i3' | 'i4', value: string) {
+    const newFilters = { ...filters, [key]: value }
+    if (key === 'i1') newFilters.i2 = newFilters.i3 = newFilters.i4 = ''
+    if (key === 'i2') newFilters.i3 = newFilters.i4 = ''
+    if (key === 'i3') newFilters.i4 = ''
+    setFilters(newFilters)
+
+    // Buscar siguientes opciones o materiales finales
+    let query = supabase.from('materiales').select('*').eq('part_group', selectedGroup)
+    if (newFilters.i1) query = query.eq('input_1', newFilters.i1)
+    if (newFilters.i2) query = query.eq('input_2', newFilters.i2)
+    if (newFilters.i3) query = query.eq('input_3', newFilters.i3)
+    if (newFilters.i4) query = query.eq('input_4', newFilters.i4)
+
+    const { data } = await query.limit(100)
+    
+    if (key !== 'i4') {
+      const nextKey = key === 'i1' ? 'input_2' : key === 'i2' ? 'input_3' : 'input_4'
+      const nextOptionsKey = key === 'i1' ? 'i2' : key === 'i2' ? 'i3' : 'i4'
+      const nextUnique = Array.from(new Set((data || []).map(m => m[nextKey]).filter(Boolean)))
+      setOptions(prev => ({ ...prev, [nextOptionsKey]: nextUnique as string[] }))
+    }
+
+    setGroupMaterials(data || [])
+  }
 
   async function handleSearch(e?: React.FormEvent) {
     if (e) e.preventDefault()
@@ -178,26 +233,131 @@ export default function RecepcionPage() {
               <p className="text-neutral-400 text-sm">Escanea el código o ingrésalo manualmente para recibir el stock.</p>
             </div>
 
-            <form onSubmit={handleSearch} className="space-y-6">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-neutral-500" />
-                <input 
-                  type="text" 
-                  autoFocus
-                  placeholder="Código de Material (Item Code)"
-                  className="w-full bg-neutral-900 border-2 border-neutral-800 rounded-2xl pl-14 pr-4 py-5 text-xl font-bold text-white focus:outline-none focus:border-emerald-500 transition-all placeholder:text-neutral-700 uppercase"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
+            <div className="space-y-8">
+              {/* SELECTOR DE GRUPOS */}
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest mb-3 ml-1">1. Grupo de Material</p>
+                  <div className="relative">
+                    <select 
+                      onChange={(e) => selectGroup(e.target.value)}
+                      value={selectedGroup || ''}
+                      className="w-full bg-neutral-900 border-2 border-neutral-800 rounded-2xl px-5 py-4 text-white font-bold appearance-none outline-none focus:border-emerald-500 transition-all cursor-pointer"
+                    >
+                      <option value="" disabled>Selecciona familia...</option>
+                      {groups.sort().map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-500">
+                      <ArrowDownToLine size={18} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* LOS 4 INPUTS DINÁMICOS */}
+                {selectedGroup && (
+                  <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-neutral-600 uppercase ml-1">2. Diámetro 1</label>
+                      <select 
+                        value={filters.i1} 
+                        onChange={e => updateFilter('i1', e.target.value)}
+                        className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+                      >
+                        <option value="">Cualquiera</option>
+                        {options.i1.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-neutral-600 uppercase ml-1">3. Diámetro 2</label>
+                      <select 
+                        value={filters.i2} 
+                        onChange={e => updateFilter('i2', e.target.value)}
+                        disabled={!filters.i1}
+                        className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 disabled:opacity-30"
+                      >
+                        <option value="">Cualquiera</option>
+                        {options.i2.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-neutral-600 uppercase ml-1">4. Espesor/Sch</label>
+                      <select 
+                        value={filters.i3} 
+                        onChange={e => updateFilter('i3', e.target.value)}
+                        disabled={!filters.i2 && options.i3.length === 0}
+                        className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 disabled:opacity-30"
+                      >
+                        <option value="">Cualquiera</option>
+                        {options.i3.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-neutral-600 uppercase ml-1">5. Otros/Rating</label>
+                      <select 
+                        value={filters.i4} 
+                        onChange={e => updateFilter('i4', e.target.value)}
+                        disabled={!filters.i3 && options.i4.length === 0}
+                        className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 disabled:opacity-30"
+                      >
+                        <option value="">Cualquiera</option>
+                        {options.i4.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* LISTA DE MATERIALES RESULTANTES */}
+                {groupMaterials.length > 0 && (
+                  <div className="bg-neutral-950/50 rounded-2xl border border-emerald-500/30 overflow-hidden animate-in fade-in zoom-in-95 shadow-2xl shadow-emerald-500/5">
+                    <div className="p-3 bg-emerald-500/10 border-b border-white/5 flex justify-between items-center">
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Coincidencias: {groupMaterials.length}</span>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto divide-y divide-white/5">
+                      {groupMaterials.map(m => (
+                        <button 
+                          key={m.id}
+                          type="button"
+                          onClick={() => { setSelectedMaterial(m); setStep(2); }}
+                          className="w-full text-left p-4 hover:bg-emerald-500/10 transition-colors group"
+                        >
+                          <p className="text-white font-bold group-hover:text-emerald-400 transition-colors">{m.ident_code}</p>
+                          <p className="text-[10px] text-neutral-500 line-clamp-2">{m.descripcion}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-px flex-1 bg-white/5"></div>
+                    <span className="text-[10px] font-bold text-neutral-700 uppercase">o ingreso manual</span>
+                    <div className="h-px flex-1 bg-white/5"></div>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-neutral-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Código de Material (Item Code)"
+                      className="w-full bg-neutral-900 border-2 border-neutral-800 rounded-2xl pl-14 pr-4 py-5 text-xl font-bold text-white focus:outline-none focus:border-emerald-500 transition-all placeholder:text-neutral-700 uppercase"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => handleSearch()}
+                  type="button"
+                  disabled={isSearching || !searchQuery}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl text-lg shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                >
+                  {isSearching ? <Loader2 className="animate-spin" /> : 'Buscar Material'}
+                </button>
               </div>
-              <button 
-                type="submit"
-                disabled={isSearching || !searchQuery}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl text-lg shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-              >
-                {isSearching ? <Loader2 className="animate-spin" /> : 'Buscar Material'}
-              </button>
-            </form>
+            </div>
           </div>
         ) : (
           <div className="glass rounded-3xl p-8 border border-white/5 animate-in slide-in-from-right-4 duration-500">

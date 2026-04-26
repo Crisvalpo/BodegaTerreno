@@ -14,11 +14,6 @@ type ScannerModalProps = {
 export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanear Código' }: ScannerModalProps) {
   const [isInitializing, setIsInitializing] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(1)
-  const [zoomCaps, setZoomCaps] = useState<{ min: number, max: number, step: number } | null>(null)
-  const [hasTorch, setHasTorch] = useState(false)
-  const [isTorchOn, setIsTorchOn] = useState(false)
-  
   const qrCodeInstance = useRef<Html5Qrcode | null>(null)
 
   useEffect(() => {
@@ -34,7 +29,6 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
   const startScanner = async () => {
     setIsInitializing(true)
     setError(null)
-    setZoom(1)
     
     await new Promise(r => setTimeout(r, 300))
 
@@ -43,10 +37,10 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
       qrCodeInstance.current = html5QrCode
 
       const config = {
-        fps: 30,
+        fps: 25,
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
           const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.85); 
+          const qrboxSize = Math.floor(minEdge * 0.75); 
           return { width: qrboxSize, height: qrboxSize };
         },
         aspectRatio: 1.0,
@@ -54,40 +48,22 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
           Html5QrcodeSupportedFormats.QR_CODE,
           Html5QrcodeSupportedFormats.PDF_417,
           Html5QrcodeSupportedFormats.CODE_128
-        ],
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true
-        }
+        ]
       }
 
       await html5QrCode.start(
-        { facingMode: "environment" },
+        { 
+          facingMode: "environment" 
+        },
         config,
         (decodedText) => {
           onScan(decodedText)
           stopScanner()
           onClose()
         },
-        () => {} // Ignorar errores de frame
+        () => {} 
       )
       
-      // Detectar capacidades de Zoom y Antorcha
-      const track = (html5QrCode as any).getRunningTrack();
-      const capabilities = track.getCapabilities() as any;
-      
-      if (capabilities.zoom) {
-        setZoomCaps({
-          min: capabilities.zoom.min,
-          max: capabilities.zoom.max,
-          step: capabilities.zoom.step
-        });
-        setZoom(capabilities.zoom.min);
-      }
-
-      if (capabilities.torch) {
-        setHasTorch(true);
-      }
-
       setIsInitializing(false)
     } catch (err: any) {
       console.error("Error scanner:", err)
@@ -95,34 +71,6 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
       setIsInitializing(false)
     }
   }
-
-  const handleZoomChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    setZoom(value);
-    if (qrCodeInstance.current) {
-      try {
-        await qrCodeInstance.current.applyVideoConstraints({
-          advanced: [{ zoom: value }] as any
-        });
-      } catch (err) {
-        console.error("Error applying zoom:", err);
-      }
-    }
-  };
-
-  const toggleTorch = async () => {
-    if (qrCodeInstance.current) {
-      try {
-        const nextState = !isTorchOn;
-        await qrCodeInstance.current.applyVideoConstraints({
-          advanced: [{ torch: nextState }] as any
-        });
-        setIsTorchOn(nextState);
-      } catch (err) {
-        console.error("Error toggling torch:", err);
-      }
-    }
-  };
 
   const stopScanner = async () => {
     if (qrCodeInstance.current && qrCodeInstance.current.isScanning) {
@@ -155,13 +103,13 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
         </div>
         
         {/* Scanner Area */}
-        <div className="p-4 flex-1 relative min-h-[400px] bg-black flex items-center justify-center">
+        <div className="p-4 flex-1 relative min-h-[350px] bg-black flex items-center justify-center">
           <div id="reader" className="w-full h-full overflow-hidden rounded-2xl"></div>
           
           {isInitializing && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950 z-10 gap-3">
               <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-              <p className="text-sm text-neutral-400 font-medium">Optimizando lente...</p>
+              <p className="text-sm text-neutral-400 font-medium">Iniciando cámara trasera...</p>
             </div>
           )}
 
@@ -189,44 +137,14 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
           )}
         </div>
 
-        {/* CONTROLES: ZOOM Y LUZ */}
-        {!isInitializing && !error && (
-          <div className="px-8 py-6 bg-white/5 border-t border-white/5 space-y-6">
-            {zoomCaps && (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-[10px] text-neutral-500 font-black uppercase tracking-widest">
-                  <span>Zoom Digital</span>
-                  <span className="text-emerald-400">{zoom.toFixed(1)}x</span>
-                </div>
-                <input 
-                  type="range"
-                  min={zoomCaps.min}
-                  max={zoomCaps.max}
-                  step={zoomCaps.step}
-                  value={zoom}
-                  onChange={handleZoomChange}
-                  className="w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                />
-              </div>
-            )}
-            
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col">
-                <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest">Cédula Detectada</p>
-                <p className="text-xs text-neutral-500">Usa el zoom si el QR es muy pequeño.</p>
-              </div>
-              
-              {hasTorch && (
-                <button 
-                  onClick={toggleTorch}
-                  className={`p-4 rounded-2xl transition-all ${isTorchOn ? 'bg-amber-500 text-white' : 'bg-neutral-800 text-neutral-400'}`}
-                >
-                  <RefreshCw className={isTorchOn ? 'animate-spin' : ''} size={20} />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        <div className="p-6 text-center bg-white/5">
+          <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest mb-1">
+            Modo: Escaneo Directo
+          </p>
+          <p className="text-xs text-neutral-500">
+            Enfoca el código QR o PDF417 de la cédula.
+          </p>
+        </div>
       </div>
     </div>
   )

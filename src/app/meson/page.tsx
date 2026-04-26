@@ -51,6 +51,8 @@ export default function MesonPage() {
   const [itemSearch, setItemSearch] = useState('')
   const [foundItems, setFoundItems] = useState<any[]>([])
 
+  const [rutSuggestions, setRutSuggestions] = useState<any[]>([])
+
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -84,6 +86,7 @@ export default function MesonPage() {
   const buscarPedidos = async (input: string) => {
     if (!input) return
     setIsLoading(true)
+    setRutSuggestions([]) // Limpiar sugerencias al buscar
     try {
       const cleanRut = parseRut(input)
       setRutBusqueda(cleanRut) 
@@ -100,9 +103,9 @@ export default function MesonPage() {
           setIsDirectMode(true)
           toast.info('Sin pedidos pendientes', { description: 'Iniciando Entrega Directa.' })
         } else {
-          setDirectUser({ rut: cleanRut, nombre: '' })
+          setDirectUser({ rut: cleanRut, nombre: '', telefono: '+569' })
           setIsDirectMode(true)
-          toast('Trabajador Nuevo', { description: 'Ingresa su nombre para registrarlo.' })
+          toast('Trabajador Nuevo', { description: 'Ingresa su nombre y teléfono para registrarlo.' })
         }
       } else {
         setPedidos(pedidos as any)
@@ -115,6 +118,24 @@ export default function MesonPage() {
       setIsLoading(false)
     }
   }
+
+  // Sugerencias de RUT mientras escribe
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (rutBusqueda.length < 3 || rutBusqueda.includes('http')) {
+        setRutSuggestions([])
+        return
+      }
+      const { data } = await supabase
+        .from('usuarios')
+        .select('id, rut, nombre')
+        .ilike('rut', `%${rutBusqueda}%`)
+        .limit(5)
+      setRutSuggestions(data || [])
+    }
+    const timer = setTimeout(fetchSuggestions, 300)
+    return () => clearTimeout(timer)
+  }, [rutBusqueda])
 
   // Autocomplete de Isométricos
   useEffect(() => {
@@ -152,11 +173,15 @@ export default function MesonPage() {
   }, [itemSearch])
 
   const addToDirect = (mat: any) => {
-    const exists = directItems.find(i => i.id === mat.id)
+    if (!selectedIso) {
+      toast.error('Selecciona primero un Isométrico de destino')
+      return
+    }
+    const exists = directItems.find(i => i.id === mat.id && i.iso?.id === selectedIso.id)
     if (exists) {
-      setDirectItems(directItems.map(i => i.id === mat.id ? {...i, cantidad: i.cantidad + 1} : i))
+      setDirectItems(directItems.map(i => (i.id === mat.id && i.iso?.id === selectedIso.id) ? {...i, cantidad: i.cantidad + 1} : i))
     } else {
-      setDirectItems([...directItems, {...mat, cantidad: 1}])
+      setDirectItems([...directItems, {...mat, cantidad: 1, iso: selectedIso}])
     }
     setItemSearch('')
     setFoundItems([])
@@ -164,61 +189,90 @@ export default function MesonPage() {
 
   const procesarDespacho = async (pedidoInfo: any, items: any[]) => {
     if (items.length === 0) return toast.error('No hay items para despachar')
+    
+    // Validar stock antes de procesar nada
+    for (const item of items) {
+      let req = isDirectMode ? item.cantidad : item.cantidad_solicitada
+      const exis = item.materiales ? item.materiales.existencias : item.existencias
+      const totalDisp = (exis || []).reduce((acc: any, curr: any) => acc + curr.cantidad, 0)
+      
+      if (req > totalDisp) {
+        toast.error(`ERROR: Stock insuficiente para ${item.ident_code || item.materiales?.ident_code}`, {
+          description: `Disponibles: ${totalDisp} unidades.`
+        })
+        return
+      }
+    }
+
     setIsLoading(true)
     try {
-      // 1. Si es entrega directa, crear el pedido primero
+      // 1. Identificar usuario
       let currentUserId = isDirectMode ? directUser.id : pedidoInfo?.usuarios?.id
       
       if (isDirectMode && !currentUserId) {
-        // Crear usuario nuevo primero
+        // Crear usuario nuevo primero si no existe
         const { data: newUser, error: uError } = await supabase
           .from('usuarios')
-          .insert({ rut: directUser.rut, nombre: directUser.nombre })
+          .insert({ 
+            rut: directUser.rut, 
+            nombre: directUser.nombre,
+            telefono: directUser.telefono 
+          })
           .select().single()
         if (uError) throw uError
         currentUserId = newUser.id
       }
 
-      let pedidoId = pedidoInfo?.id
-      if (isDirectMode) {
-        // Buscar/Crear isometrico
-        let isoId = selectedIso?.id || null
+      // 2. Agrupar items por Isométrico
+      const itemsPorIso: any = {}
+      items.forEach(item => {
+        const isoId = isDirectMode ? item.iso?.id : (pedidoInfo?.isometrico_id || 'SIN_ISO')
+        if (!itemsPorIso[isoId]) itemsPorIso[isoId] = []
+        itemsPorIso[isoId].push(item)
+      })
+
+      for (const [isoId, isoItems] of Object.entries(itemsPorIso)) {
+        let currentIsoId = isoId === 'SIN_ISO' ? null : isoId
         
-        const { data: newPedido, error: pError } = await supabase
-          .from('pedidos')
-          .insert({
-            usuario_id: currentUserId,
-            isometrico_id: isoId,
-            tipo: 'meson',
-            estado: 'entregado',
-            delivered_at: new Date().toISOString()
-          })
-          .select().single()
-        if (pError) throw pError
-        pedidoId = newPedido.id
-      }
+        // Crear un pedido por cada grupo de isométrico
+        let currentPedidoId = pedidoInfo?.id
+        if (isDirectMode) {
+          const { data: newPedido, error: pError } = await supabase
+            .from('pedidos')
+            .insert({
+              usuario_id: currentUserId,
+              isometrico_id: currentIsoId,
+              tipo: 'meson',
+              estado: 'entregado',
+              delivered_at: new Date().toISOString()
+            })
+            .select().single()
+          if (pError) throw pError
+          currentPedidoId = newPedido.id
+        }
 
-      for (const item of items) {
-        let cantidadPendiente = isDirectMode ? item.cantidad : item.cantidad_solicitada
-        const existencias = item.materiales ? item.materiales.existencias : item.existencias
-        const materialId = item.materiales ? item.materiales.id : item.id
+        for (const item of (isoItems as any[])) {
+          let cantidadPendiente = isDirectMode ? item.cantidad : item.cantidad_solicitada
+          const existencias = item.materiales ? item.materiales.existencias : item.existencias
+          const materialId = item.materiales ? item.materiales.id : item.id
 
-        const sortedStock = [...(existencias || [])].sort((a, b) => b.cantidad - a.cantidad)
+          const sortedStock = [...(existencias || [])].sort((a, b) => b.cantidad - a.cantidad)
 
-        for (const stock of sortedStock) {
-          if (cantidadPendiente <= 0) break
-          const aDescontar = Math.min(cantidadPendiente, stock.cantidad)
-          await supabase.from('existencias').update({ cantidad: stock.cantidad - aDescontar }).eq('id', stock.id)
-          await supabase.from('movimientos').insert({
-            material_id: materialId,
-            ubicacion_id: stock.ubicacion_id,
-            tipo: 'OUT',
-            cantidad: aDescontar,
-            referencia_id: pedidoId,
-            usuario_id: isDirectMode ? directUser.id : pedidoInfo.usuarios.id,
-            timestamp: new Date().toISOString()
-          })
-          cantidadPendiente -= aDescontar
+          for (const stock of sortedStock) {
+            if (cantidadPendiente <= 0) break
+            const aDescontar = Math.min(cantidadPendiente, stock.cantidad)
+            await supabase.from('existencias').update({ cantidad: stock.cantidad - aDescontar }).eq('id', stock.id)
+            await supabase.from('movimientos').insert({
+              material_id: materialId,
+              ubicacion_id: stock.ubicacion_id,
+              tipo: 'OUT',
+              cantidad: aDescontar,
+              referencia_id: currentPedidoId,
+              usuario_id: currentUserId,
+              timestamp: new Date().toISOString()
+            })
+            cantidadPendiente -= aDescontar
+          }
         }
       }
 
@@ -274,33 +328,48 @@ export default function MesonPage() {
             <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 block">Identificación Operario</label>
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 w-5 h-5" />
-              <input 
-                ref={inputRef}
-                type="text" 
-                value={rutBusqueda}
-                onChange={e => {
-                  const val = e.target.value
-                  setRutBusqueda(val)
-                  // Si parece una URL de escaneo (muy larga), parsear al vuelo
-                  if (val.length > 20 && val.includes('http')) {
-                    const clean = parseRut(val)
-                    if (clean !== val) {
-                      setRutBusqueda(clean)
-                      buscarPedidos(clean)
+                <input 
+                  ref={inputRef}
+                  type="text" 
+                  value={rutBusqueda}
+                  onChange={e => {
+                    const val = e.target.value
+                    setRutBusqueda(val)
+                    // Si parece una URL de escaneo (muy larga), parsear al vuelo
+                    if (val.length > 20 && val.includes('http')) {
+                      const clean = parseRut(val)
+                      if (clean !== val) {
+                        setRutBusqueda(clean)
+                        buscarPedidos(clean)
+                      }
                     }
-                  }
-                }}
-                onKeyDown={e => e.key === 'Enter' && buscarPedidos(rutBusqueda)}
-                className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl pl-11 pr-14 py-4 text-white font-bold focus:outline-none focus:border-blue-500"
-                placeholder="Escanea RUT o Cédula..."
-              />
-              <button 
-                onClick={() => setIsScannerOpen(true)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-600/20 text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
-              >
-                <Camera size={20} />
-              </button>
-            </div>
+                  }}
+                  onKeyDown={e => e.key === 'Enter' && buscarPedidos(rutBusqueda)}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl pl-11 pr-14 py-4 text-white font-bold focus:outline-none focus:border-blue-500"
+                  placeholder="Escribe RUT o escanea..."
+                />
+                <button 
+                  onClick={() => setIsScannerOpen(true)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-600/20 text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+                >
+                  <Camera size={20} />
+                </button>
+              </div>
+
+              {rutSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 w-full mt-2 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl z-[60] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  {rutSuggestions.map(u => (
+                    <button 
+                      key={u.id} 
+                      onClick={() => buscarPedidos(u.rut)}
+                      className="w-full text-left p-4 hover:bg-white/5 border-b border-white/5 last:border-0 group flex flex-col"
+                    >
+                      <span className="text-white font-black">{u.rut}</span>
+                      <span className="text-xs text-neutral-500 group-hover:text-blue-400 transition-colors">{u.nombre}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
           </div>
 
           {!isDirectMode && pedidos.length > 0 && (
@@ -324,16 +393,23 @@ export default function MesonPage() {
               {directUser.id ? (
                 <h3 className="text-xl font-black text-white mb-6">{directUser.nombre}</h3>
               ) : (
-                <div className="mb-6">
-                  <input 
-                    type="text"
-                    placeholder="Nombre Completo..."
-                    value={directUser.nombre}
-                    onChange={e => setDirectUser({...directUser, nombre: e.target.value})}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none"
-                  />
-                  <p className="text-[10px] text-neutral-600 mt-1 uppercase font-bold">Registro de nuevo trabajador</p>
-                </div>
+                  <div className="space-y-3 mb-6">
+                    <input 
+                      type="text"
+                      placeholder="Nombre Completo..."
+                      value={directUser.nombre}
+                      onChange={e => setDirectUser({...directUser, nombre: e.target.value})}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none"
+                    />
+                    <input 
+                      type="tel"
+                      placeholder="Teléfono (Ej: +569...)"
+                      value={directUser.telefono}
+                      onChange={e => setDirectUser({...directUser, telefono: e.target.value})}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none"
+                    />
+                    <p className="text-[10px] text-neutral-600 mt-1 uppercase font-bold">Registro de nuevo trabajador</p>
+                  </div>
               )}
               
               <div className="relative">
@@ -406,6 +482,11 @@ export default function MesonPage() {
                   {directItems.map((item, idx) => (
                     <div key={idx} className="bg-neutral-900/50 rounded-2xl p-5 border border-white/5 flex items-center justify-between group hover:border-amber-500/30 transition-all">
                       <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-black uppercase tracking-widest border border-blue-500/20 flex items-center gap-1">
+                            <Map size={10} /> {item.iso?.codigo || 'SIN DESTINO'}
+                          </span>
+                        </div>
                         <p className="text-white font-bold text-lg leading-tight">{item.ident_code}</p>
                         <div className="flex flex-wrap gap-2 mt-2">
                           {item.existencias?.map((s: any) => (
@@ -421,11 +502,16 @@ export default function MesonPage() {
                           <input 
                             type="number" 
                             value={item.cantidad}
-                            onChange={e => setDirectItems(directItems.map(i => i.id === item.id ? {...i, cantidad: parseFloat(e.target.value)} : i))}
-                            className="w-20 bg-neutral-950 border border-neutral-800 rounded-xl py-3 text-center text-white font-black text-lg focus:border-amber-500 outline-none"
+                            onChange={e => {
+                              const val = parseFloat(e.target.value)
+                              const stock = item.existencias?.reduce((a:any,b:any)=>a+b.cantidad,0) || 0
+                              if (val > stock) toast.warning(`¡Atención! Solo hay ${stock} disponibles`)
+                              setDirectItems(directItems.map(i => (i.id === item.id && i.iso?.id === item.iso?.id) ? {...i, cantidad: val} : i))
+                            }}
+                            className={`w-20 bg-neutral-950 border ${item.cantidad > (item.existencias?.reduce((a:any,b:any)=>a+b.cantidad,0) || 0) ? 'border-red-500 text-red-500 animate-pulse' : 'border-neutral-800 text-white'} rounded-xl py-3 text-center font-black text-lg focus:border-amber-500 outline-none`}
                           />
                         </div>
-                        <button onClick={() => setDirectItems(directItems.filter(i => i.id !== item.id))} className="p-2 text-neutral-700 hover:text-red-500 transition-colors"><Trash2 size={20}/></button>
+                        <button onClick={() => setDirectItems(directItems.filter(i => !(i.id === item.id && i.iso?.id === item.iso?.id)))} className="p-2 text-neutral-700 hover:text-red-500 transition-colors"><Trash2 size={20}/></button>
                       </div>
                     </div>
                   ))}

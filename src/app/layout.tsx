@@ -10,7 +10,6 @@ export const metadata: Metadata = {
   description: 'Sistema de Bodega de Materiales en Terreno',
 }
 
-import ConnectionDebug from '@/components/ConnectionDebug'
 
 export default function RootLayout({
   children,
@@ -21,7 +20,6 @@ export default function RootLayout({
     <html lang="es" className="dark">
       <body className={`${inter.className} min-h-screen bg-neutral-950 text-neutral-50`}>
         {children}
-        <ConnectionDebug />
         <Toaster theme="dark" richColors position="top-right" />
       </body>
     </html>
