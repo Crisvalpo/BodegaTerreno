@@ -81,8 +81,7 @@ export default function Home() {
     )
   }
 
-  const isAdmin = user.rol === 'admin'
-  const isBodeguero = user.rol === 'bodeguero' || isAdmin
+  const isAuthorized = user.nombre.toLowerCase().includes('cristian luke') || user.nombre.toLowerCase().includes('felipe gonzales')
 
   return (
     <main className="min-h-screen bg-[#050505] text-neutral-200 font-sans selection:bg-emerald-500/30 flex justify-center">
@@ -103,7 +102,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && (
+            {isAuthorized && (
               <Link 
                 href="/admin"
                 className="w-12 h-12 bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-600 flex items-center justify-center hover:text-emerald-500 hover:bg-emerald-500/10 transition-all active:scale-90"
@@ -128,18 +127,21 @@ export default function Home() {
           <StatCard label="Crítico" value={stats.critico.toString().padStart(2, '0')} accent="rose" />
         </div>
 
-        {/* Menú de App (Grid 1 o 2 columnas) */}
+        {/* Menú de App (Filtrado por Autorización) */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 content-start overflow-y-auto custom-scrollbar pb-10">
           
-          {/* PRIORIDAD 1: RECEPCIÓN */}
-          <MenuCard 
-            href="/recepcion"
-            title="Recepción"
-            desc="Ingreso de materiales."
-            icon={<PackagePlus size={22} />}
-            accent="blue"
-          />
+          {/* PRIORIDAD 1: RECEPCIÓN (SOLO AUTORIZADOS) */}
+          {isAuthorized && (
+            <MenuCard 
+              href="/recepcion"
+              title="Recepción"
+              desc="Ingreso de materiales."
+              icon={<PackagePlus size={22} />}
+              accent="blue"
+            />
+          )}
 
+          {/* PRE-PEDIDO (PÚBLICO) */}
           <MenuCard 
             href="/pedidos/nuevo"
             title="Pre-Pedido"
@@ -148,7 +150,8 @@ export default function Home() {
             accent="emerald"
           />
 
-          {isBodeguero && (
+          {/* MESÓN (SOLO AUTORIZADOS) */}
+          {isAuthorized && (
             <MenuCard 
               href="/meson"
               title="Mesón Bodega"
@@ -158,6 +161,7 @@ export default function Home() {
             />
           )}
 
+          {/* STOCK (PÚBLICO) */}
           <MenuCard 
             href="/stock"
             title="Stock & KPI"
@@ -166,13 +170,16 @@ export default function Home() {
             accent="neutral"
           />
 
-          <MenuCard 
-            href="/stock?tab=history"
-            title="Historial"
-            desc="Registro de movimientos."
-            icon={<History size={22} />}
-            accent="neutral"
-          />
+          {/* HISTORIAL (SOLO AUTORIZADOS) */}
+          {isAuthorized && (
+            <MenuCard 
+              href="/stock?tab=history"
+              title="Historial"
+              desc="Registro de movimientos."
+              icon={<History size={22} />}
+              accent="neutral"
+            />
+          )}
         </div>
 
         {/* Footer de App */}
