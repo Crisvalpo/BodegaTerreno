@@ -397,7 +397,10 @@ export default function MesonPage() {
                               {isReady && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
                             </div>
                             <span className="text-sm font-black text-white uppercase italic tracking-tighter">
-                              Plano: {p.isometricos?.codigo || 'VALE GENERAL'}
+                              Plano: {(() => {
+                                const isos = new Set(p.pedido_items.map((i: any) => i.isometrico_id).filter(Boolean))
+                                return isos.size > 1 ? 'MÚLTIPLES PLANOS' : (p.isometricos?.codigo || 'VALE GENERAL')
+                              })()}
                             </span>
                           </div>
                           <ChevronRight size={14} className={isReady ? 'text-emerald-500' : 'text-neutral-700'} />
@@ -535,7 +538,12 @@ export default function MesonPage() {
                           {p.estado === 'listo' ? '🟢 LISTO' : p.estado === 'picking' ? '🔵 EN PREPARACIÓN' : '🟡 PENDIENTE'}
                         </span>
                         <h4 className="text-sm font-black text-white leading-none uppercase italic">{p.usuarios?.nombre || 'Usuario Desconocido'}</h4>
-                        <p className="text-[10px] font-mono text-neutral-500 mt-1">{p.isometricos?.codigo || 'VALE GENERAL / MISCELÁNEO'}</p>
+                        <p className="text-[10px] font-mono text-neutral-500 mt-1">
+                          {(() => {
+                            const isos = new Set(p.pedido_items.map((i: any) => i.isometrico_id).filter(Boolean))
+                            return isos.size > 1 ? 'MÚLTIPLES PLANOS' : (p.isometricos?.codigo || 'VALE GENERAL / MISCELÁNEO')
+                          })()}
+                        </p>
                       </div>
                       <span className="text-[8px] font-bold text-neutral-700 uppercase">{new Date(p.created_at).toLocaleTimeString()}</span>
                     </div>

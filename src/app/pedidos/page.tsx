@@ -108,7 +108,15 @@ export default function MisPedidos() {
                         {status.icon}
                         <span className="text-[8px] font-black uppercase tracking-widest">{status.label}</span>
                       </div>
-                      <h4 className="text-xs font-black text-white leading-none uppercase italic">Plano: {p.isometricos?.codigo || 'VALE GENERAL / MISCELÁNEO'}</h4>
+                      {(() => {
+                        const isos = new Set(p.pedido_items.map((i: any) => i.isometrico_id).filter(Boolean))
+                        const label = isos.size > 1 ? 'MÚLTIPLES PLANOS' : (p.isometricos?.codigo || 'VALE GENERAL / MISCELÁNEO')
+                        return (
+                          <h4 className="text-xs font-black text-white leading-none uppercase italic">
+                            Plano: {label}
+                          </h4>
+                        )
+                      })()}
                       {user?.rol === 'admin' && (
                         <span className="text-[9px] font-bold text-emerald-500 uppercase">Por: {p.usuarios?.nombre}</span>
                       )}
