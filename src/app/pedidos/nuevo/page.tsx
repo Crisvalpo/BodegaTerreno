@@ -36,6 +36,25 @@ export default function NuevoPedidoPage() {
   // Step 2: Isométrico
   const [isometricoQuery, setIsometricoQuery] = useState('')
   const [isometrico, setIsometrico] = useState<any>(null)
+  const [isoSuggestions, setIsoSuggestions] = useState<any[]>([])
+
+  // Sugerencias de Isométricos
+  useEffect(() => {
+    const fetchIsos = async () => {
+      if (isometricoQuery.length < 2) {
+        setIsoSuggestions([])
+        return
+      }
+      const { data } = await supabase
+        .from('isometricos')
+        .select('*')
+        .ilike('codigo', `%${isometricoQuery}%`)
+        .limit(5)
+      setIsoSuggestions(data || [])
+    }
+    const timer = setTimeout(fetchIsos, 300)
+    return () => clearTimeout(timer)
+  }, [isometricoQuery])
 
   // Step 3: Materiales
   const [materialQuery, setMaterialQuery] = useState('')
@@ -48,6 +67,17 @@ export default function NuevoPedidoPage() {
   // Filtros de 4 niveles
   const [filters, setFilters] = useState({ i1: '', i2: '', i3: '', i4: '' })
   const [options, setOptions] = useState({ i1: [] as string[], i2: [] as string[], i3: [] as string[], i4: [] as string[] })
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('bodega_user')
+    if (storedUser) {
+      const u = JSON.parse(storedUser)
+      setUsuario(u)
+      setRut(u.rut)
+      setNombre(u.nombre)
+      setStep(2) // Ir directo a Isométrico
+    }
+  }, [])
 
   useEffect(() => {
     async function fetchGroups() {
@@ -355,23 +385,39 @@ export default function NuevoPedidoPage() {
             <h2 className="text-2xl font-bold text-white mb-2">Isométrico</h2>
             <p className="text-neutral-400 text-sm mb-6">¿Para qué plano o línea necesitas los materiales?</p>
             
-            <div className="space-y-4">
+            <div className="space-y-4 relative">
               <div>
                 <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Código Isométrico / Spool</label>
-                <input 
-                  type="text" 
-                  value={isometricoQuery}
-                  onChange={e => setIsometricoQuery(e.target.value)}
-                  className="w-full mt-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors uppercase"
-                  placeholder="Ej: AH-380-0806"
-                />
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={isometricoQuery}
+                    onChange={e => setIsometricoQuery(e.target.value)}
+                    className="w-full mt-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors uppercase"
+                    placeholder="Ej: AH-380"
+                  />
+                  {isoSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 w-full mt-1 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-white/5 animate-in fade-in zoom-in-95">
+                      {isoSuggestions.map(iso => (
+                        <button 
+                          key={iso.id} 
+                          onClick={() => { setIsometrico(iso); setStep(3); }}
+                          className="w-full text-left p-4 hover:bg-emerald-500/10 transition-colors group"
+                        >
+                          <p className="text-white font-bold group-hover:text-emerald-400">{iso.codigo}</p>
+                          <p className="text-[10px] text-neutral-500 uppercase">{iso.proyecto}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <button 
                 onClick={handleIsometrico}
                 disabled={isLoading || !isometricoQuery}
                 className="w-full mt-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl px-4 py-4 flex items-center justify-center transition-colors disabled:opacity-50"
               >
-                Continuar <ArrowRight className="ml-2 w-5 h-5" />
+                {isLoading ? 'Verificando...' : 'Continuar'} <ArrowRight className="ml-2 w-5 h-5" />
               </button>
             </div>
           </div>

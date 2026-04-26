@@ -93,13 +93,21 @@ export default function Home() {
         {/* Grid de Accesos */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
           
-          {/* Módulos de Terreno (Para todos) */}
+          {/* Módulos de Terreno e Información General (Para todos) */}
           <MenuCard 
             href="/pedidos/nuevo"
             title="Pre-Pedido"
             desc="Solicita materiales para tu isométrico desde terreno."
             icon={<Package className="w-7 h-7" />}
             color="amber"
+          />
+
+          <MenuCard 
+            href="/dashboard"
+            title="Stock & Métricas"
+            desc="Consulta existencias de materiales en tiempo real."
+            icon={<LayoutDashboard className="w-7 h-7" />}
+            color="purple"
           />
 
           {/* Módulos de Bodega (Admin y Bodeguero) */}
@@ -118,13 +126,6 @@ export default function Home() {
                 desc="Ingreso de nuevos materiales al inventario."
                 icon={<PackagePlus className="w-7 h-7" />}
                 color="emerald"
-              />
-              <MenuCard 
-                href="/dashboard"
-                title="Stock & Métricas"
-                desc="Vista general de existencias e historial vivo."
-                icon={<LayoutDashboard className="w-7 h-7" />}
-                color="purple"
               />
             </>
           )}

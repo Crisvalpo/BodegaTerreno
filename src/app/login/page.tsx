@@ -40,12 +40,7 @@ export default function LoginPage() {
 
       localStorage.setItem('bodega_user', JSON.stringify(user))
       toast.success(`Bienvenido, ${user.nombre}`)
-      
-      if (user.rol === 'admin' || user.rol === 'bodeguero') {
-        router.push('/dashboard')
-      } else {
-        router.push('/pedidos/nuevo')
-      }
+      router.push('/')
       
     } catch (error: any) {
       toast.error('Error al iniciar sesión', { description: error.message })
@@ -75,7 +70,7 @@ export default function LoginPage() {
 
       localStorage.setItem('bodega_user', JSON.stringify(newUser))
       toast.success('¡Registro exitoso!', { description: 'Ahora puedes solicitar materiales.' })
-      router.push('/pedidos/nuevo')
+      router.push('/')
 
     } catch (error: any) {
       toast.error('Error en el registro', { description: error.message })
