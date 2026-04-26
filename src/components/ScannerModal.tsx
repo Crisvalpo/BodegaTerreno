@@ -38,19 +38,28 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
       qrCodeInstance.current = html5QrCode
 
       const config = {
-        fps: 25,
+        fps: 30, // Máximo recomendado para fluidez
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
           const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.75);
+          // Reducimos un poco el box para forzar al usuario a acercarse y mejorar resolución del área
+          const qrboxSize = Math.floor(minEdge * 0.7); 
           return { width: qrboxSize, height: qrboxSize };
         },
         aspectRatio: 1.0,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.QR_CODE,
           Html5QrcodeSupportedFormats.PDF_417,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.DATA_MATRIX
-        ]
+          Html5QrcodeSupportedFormats.CODE_128
+        ],
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true // USA ACELERACIÓN POR HARDWARE DEL MÓVIL SI ESTÁ DISPONIBLE
+        },
+        videoConstraints: {
+          facingMode: "environment",
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 },
+          focusMode: "continuous"
+        }
       }
 
       await html5QrCode.start(
@@ -62,7 +71,7 @@ export default function ScannerModal({ isOpen, onClose, onScan, title = 'Escanea
           onClose()
         },
         (errorMessage) => {
-          // Errores de escaneo ignorados (no se encontró código en este frame)
+          // Errores de escaneo ignorados
         }
       )
       

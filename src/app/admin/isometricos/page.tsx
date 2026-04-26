@@ -11,8 +11,6 @@ type Isometrico = {
   id: string
   codigo: string
   revision: string
-  proyecto: string
-  linea: string
 }
 
 export default function IsometricosAdminPage() {
@@ -23,9 +21,7 @@ export default function IsometricosAdminPage() {
 
   const [formData, setFormData] = useState({
     codigo: '',
-    revision: '0',
-    proyecto: 'ANDINA',
-    linea: ''
+    revision: '0'
   })
 
   useEffect(() => {
@@ -47,7 +43,7 @@ export default function IsometricosAdminPage() {
       const { data, error } = await supabase.from('isometricos').insert([formData]).select()
       if (error) throw error
       setIsometricos([data[0], ...isometricos])
-      setFormData({ codigo: '', revision: '0', proyecto: 'ANDINA', linea: '' })
+      setFormData({ codigo: '', revision: '0' })
       toast.success('Isométrico registrado correctamente')
     } catch (error: any) {
       toast.error('Error al guardar', { description: error.message })
@@ -72,9 +68,7 @@ export default function IsometricosAdminPage() {
         setIsSaving(true)
         const toInsert = data.map((row: any) => ({
           codigo: String(row.isometrico || row.codigo || row.ISO || '').toUpperCase(),
-          revision: String(row.revision || row.rev || '0'),
-          proyecto: String(row.proyecto || 'ANDINA'),
-          linea: String(row.linea || '')
+          revision: String(row.revision || row.rev || '0')
         })).filter(i => i.codigo)
 
         const { error } = await supabase.from('isometricos').upsert(toInsert, { onConflict: 'codigo' })
@@ -119,14 +113,23 @@ export default function IsometricosAdminPage() {
           </div>
           
           <div className="flex gap-4">
-            <label className="flex items-center gap-3 px-6 py-3 bg-neutral-900 border border-neutral-800 rounded-2xl text-white hover:bg-white/5 cursor-pointer transition-all shadow-xl">
-              <FileUp size={20} className="text-purple-400" />
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-bold leading-none">Carga Masiva</span>
-                <span className="text-[10px] text-neutral-500 uppercase font-black mt-1">Excel (.xlsx)</span>
-              </div>
-              <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} />
-            </label>
+            <div className="flex flex-col items-end gap-2">
+              <label className="flex items-center gap-3 px-6 py-3 bg-neutral-900 border border-neutral-800 rounded-2xl text-white hover:bg-white/5 cursor-pointer transition-all shadow-xl">
+                <FileUp size={20} className="text-purple-400" />
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-bold leading-none">Carga Masiva</span>
+                  <span className="text-[10px] text-neutral-500 uppercase font-black mt-1">Excel (.xlsx)</span>
+                </div>
+                <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} />
+              </label>
+              <a 
+                href="/templates/isometricos_template.csv" 
+                download 
+                className="text-[10px] text-purple-400 font-bold uppercase tracking-widest hover:text-purple-300 transition-colors flex items-center gap-1"
+              >
+                Descargar Plantilla CSV
+              </a>
+            </div>
           </div>
         </header>
 
@@ -150,7 +153,7 @@ export default function IsometricosAdminPage() {
                     placeholder="AH-380-..."
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1">
                   <div>
                     <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Revisión</label>
                     <div className="relative">
@@ -163,16 +166,6 @@ export default function IsometricosAdminPage() {
                         placeholder="0"
                       />
                     </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Línea</label>
-                    <input 
-                      type="text" 
-                      value={formData.linea}
-                      onChange={e => setFormData({...formData, linea: e.target.value})}
-                      className="w-full bg-neutral-900 border-2 border-neutral-800 rounded-2xl px-5 py-4 text-white font-bold focus:border-purple-500 outline-none"
-                      placeholder="Line"
-                    />
                   </div>
                 </div>
                 <button 
@@ -210,9 +203,8 @@ export default function IsometricosAdminPage() {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-white/5 text-neutral-500 text-[10px] font-black uppercase tracking-widest">
                       <tr>
-                        <th className="px-8 py-6">Código (ID)</th>
-                        <th className="px-8 py-6 text-center">Rev</th>
-                        <th className="px-8 py-6">Línea</th>
+                        <th className="px-8 py-6">Código Isométrico (ID)</th>
+                        <th className="px-8 py-6 text-center">Revisión Actual</th>
                         <th className="px-8 py-6 text-right">Acción</th>
                       </tr>
                     </thead>
@@ -225,7 +217,6 @@ export default function IsometricosAdminPage() {
                               REV {iso.revision}
                             </span>
                           </td>
-                          <td className="px-8 py-6 text-neutral-400 font-medium">{iso.linea || '--'}</td>
                           <td className="px-8 py-6 text-right">
                             <button onClick={() => deleteIso(iso.id)} className="p-2 text-neutral-700 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
                               <Trash2 size={18} />
