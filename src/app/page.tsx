@@ -27,7 +27,10 @@ export default function Home() {
     hoy: 0,
     pendientes: 0,
     transito: 0,
-    critico: 0
+    critico: 0,
+    userPendientes: 0,
+    userListos: 0,
+    userEntregados: 0
   })
 
   useEffect(() => {
@@ -36,19 +39,24 @@ export default function Home() {
       router.push('/login')
       return
     }
-    setUser(JSON.parse(storedUser))
+    const parsed = JSON.parse(storedUser)
+    setUser(parsed)
     setIsLoading(false)
-    fetchStats()
+    fetchStats(parsed.id)
   }, [])
 
-  const fetchStats = async () => {
+  const fetchStats = async (userId: string) => {
     try {
       const today = new Date().toISOString().split('T')[0]
       
       const { count: pedidosHoy } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).gte('created_at', today)
       const { count: pendientes } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente')
-      const { count: transito } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('estado', 'parcial')
+      const { count: transito } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('estado', 'picking')
       
+      const { count: uPendientes } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('usuario_id', userId).in('estado', ['pendiente', 'picking'])
+      const { count: uListos } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('usuario_id', userId).eq('estado', 'listo')
+      const { count: uEntregados } = await supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('usuario_id', userId).eq('estado', 'entregado')
+
       // Simulación de crítico basada en existencias bajas
       const { data: existencias } = await supabase.from('existencias').select('cantidad')
       const criticoCount = existencias?.filter(e => e.cantidad < 5).length || 0
@@ -57,7 +65,10 @@ export default function Home() {
         hoy: pedidosHoy || 0,
         pendientes: pendientes || 0,
         transito: transito || 0,
-        critico: criticoCount
+        critico: criticoCount,
+        userPendientes: uPendientes || 0,
+        userListos: uListos || 0,
+        userEntregados: uEntregados || 0
       })
     } catch (e) {
       console.error('Error fetching stats:', e)
@@ -150,6 +161,11 @@ export default function Home() {
             desc="Seguimiento y estados de avance."
             icon={<ClipboardList size={22} />}
             accent="blue"
+            badges={[
+              { count: stats.userPendientes, color: 'bg-rose-500' },
+              { count: stats.userListos, color: 'bg-blue-500' },
+              { count: stats.userEntregados, color: 'bg-emerald-500' }
+            ]}
           />
 
           {/* MESÓN (SOLO AUTORIZADOS) */}
@@ -212,12 +228,19 @@ function StatCard({ label, value, accent }: { label: string, value: string, acce
   )
 }
 
-function MenuCard({ href, title, desc, icon, accent }: { href: string, title: string, desc: string, icon: any, accent: 'emerald' | 'blue' | 'rose' | 'neutral' }) {
+function MenuCard({ href, title, desc, icon, accent, badges }: { 
+  href: string, 
+  title: string, 
+  desc: string, 
+  icon: any, 
+  accent: 'emerald' | 'blue' | 'rose' | 'neutral',
+  badges?: { count: number, color: string }[]
+}) {
   const accents = {
     emerald: 'hover:border-emerald-500/30 active:bg-emerald-500/5',
     blue: 'hover:border-blue-500/30 active:bg-blue-500/5',
     rose: 'hover:border-rose-500/30 active:bg-rose-500/5',
-    neutral: 'hover:border-neutral-500/30 active:bg-neutral-500/5'
+    neutral: 'hover:border-neutral-500/30 active:bg-neutral-900/60'
   }
   
   const iconColors = {
@@ -234,9 +257,18 @@ function MenuCard({ href, title, desc, icon, accent }: { href: string, title: st
           {icon}
         </div>
         <div className="flex-1">
-          <h3 className="text-lg font-black text-white tracking-tighter uppercase italic leading-none mb-1">
-            {title}
-          </h3>
+          <div className="flex items-center gap-1.5 mb-1">
+            <h3 className="text-lg font-black text-white tracking-tighter uppercase italic leading-none">
+              {title}
+            </h3>
+            <div className="flex gap-1 ml-auto">
+              {badges?.map((b, i) => b.count > 0 && (
+                <div key={i} className={`w-5 h-5 rounded-full ${b.color} text-black text-[9px] font-black flex items-center justify-center shadow-lg shadow-black/40`}>
+                  {b.count}
+                </div>
+              ))}
+            </div>
+          </div>
           <p className="text-[10px] text-neutral-500 font-medium leading-none uppercase italic">
             {desc}
           </p>
