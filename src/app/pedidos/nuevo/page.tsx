@@ -148,6 +148,7 @@ export default function NuevoPedido() {
     try {
       const { data: pedido, error: pError } = await supabase.from('pedidos').insert({
         usuario_id: usuario.id,
+        isometrico_id: isometrico.id,
         estado: 'pendiente',
         tipo: 'prepedido'
       }).select().single()

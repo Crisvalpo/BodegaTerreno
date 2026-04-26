@@ -220,6 +220,21 @@ export default function MesonPage() {
         userId = newUser.id
       }
 
+      let activePedidoId = pedidoInfo?.id
+
+      // Si es entrega directa, creamos un pedido "fantasma" ya entregado para la trazabilidad
+      if (isDirectMode) {
+        const { data: newPed, error: pErr } = await supabase.from('pedidos').insert({
+          usuario_id: userId,
+          isometrico_id: selectedIso?.id,
+          tipo: 'meson',
+          estado: 'entregado',
+          delivered_at: new Date().toISOString()
+        }).select().single()
+        if (pErr) throw pErr
+        activePedidoId = newPed.id
+      }
+
       for (const item of items) {
         let aEntregar = isDirectMode ? item.cantidad : (quantitiesToDeliver[item.id] || 0)
         if (aEntregar <= 0) continue
@@ -234,9 +249,19 @@ export default function MesonPage() {
           await supabase.from('existencias').update({ cantidad: stock.cantidad - aDescontar }).eq('id', stock.id)
           await supabase.from('movimientos').insert({
             material_id: materialId, ubicacion_id: stock.ubicacion_id, tipo: 'OUT', cantidad: aDescontar,
-            referencia_id: isDirectMode ? null : pedidoInfo.id, usuario_id: userId
+            referencia_id: activePedidoId, usuario_id: userId
           })
-          if (!isDirectMode) {
+          
+          if (isDirectMode) {
+            // Registrar los items en el pedido fantasma
+            await supabase.from('pedido_items').insert({
+              pedido_id: activePedidoId,
+              material_id: materialId,
+              cantidad_solicitada: aDescontar,
+              cantidad_entregada: aDescontar,
+              isometrico_id: selectedIso?.id
+            })
+          } else {
             const nuevaCantidad = (item.cantidad_entregada || 0) + aDescontar
             await supabase.from('pedido_items').update({ cantidad_entregada: nuevaCantidad }).eq('id', item.id)
           }
