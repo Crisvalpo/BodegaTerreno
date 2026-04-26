@@ -16,6 +16,7 @@ type Material = {
   descripcion: string
   peso: number
   grupo: string
+  stock?: number // Stock calculado
 }
 
 type CartItem = {
@@ -104,7 +105,7 @@ export default function NuevoPedidoPage() {
     if (key === 'i3') newFilters.i4 = ''
     setFilters(newFilters)
 
-    let query = supabase.from('materiales').select('*').eq('part_group', selectedGroup)
+    let query = supabase.from('materiales').select('*, existencias(cantidad)').eq('part_group', selectedGroup)
     if (newFilters.i1) query = query.eq('input_1', newFilters.i1)
     if (newFilters.i2) query = query.eq('input_2', newFilters.i2)
     if (newFilters.i3) query = query.eq('input_3', newFilters.i3)
@@ -112,13 +113,19 @@ export default function NuevoPedidoPage() {
 
     const { data } = await query.limit(50)
     
+    // Calcular stock total por material
+    const materialsWithStock = (data || []).map((m: any) => ({
+      ...m,
+      stock: m.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+    }))
+
     if (key !== 'i4') {
       const nextKey = key === 'i1' ? 'input_2' : key === 'i2' ? 'input_3' : 'input_4'
       const nextOptionsKey = key === 'i1' ? 'i2' : key === 'i2' ? 'i3' : 'i4'
       const nextUnique = Array.from(new Set((data || []).map(m => m[nextKey] as string).filter(Boolean)))
       setOptions(prev => ({ ...prev, [nextOptionsKey]: nextUnique as string[] }))
     }
-    setGroupMaterials(data as Material[] || [])
+    setGroupMaterials(materialsWithStock as Material[] || [])
   }
 
   // Sugerencias de RUT
@@ -219,11 +226,17 @@ export default function NuevoPedidoPage() {
       }
       const { data } = await supabase
         .from('materiales')
-        .select('*')
+        .select('*, existencias(cantidad)')
         .or(`ident_code.ilike.%${materialQuery}%,descripcion.ilike.%${materialQuery}%`)
         .limit(15)
       
-      if (data) setMaterialesEncontrados(data)
+      if (data) {
+        const withStock = data.map((m: any) => ({
+          ...m,
+          stock: m.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+        }))
+        setMaterialesEncontrados(withStock as Material[])
+      }
     }
     
     const debounce = setTimeout(searchMateriales, 300)
@@ -232,6 +245,12 @@ export default function NuevoPedidoPage() {
 
   // Manejo del Carrito
   const addToCart = (material: Material) => {
+    if ((material.stock || 0) <= 0) {
+      toast.warning('Material sin stock', {
+        description: 'Este material no tiene existencias actuales, pero puedes solicitarlo si es urgente.'
+      })
+    }
+
     setCart(prev => {
       const exists = prev.find(item => item.material.id === material.id)
       if (exists) {
@@ -461,7 +480,7 @@ export default function NuevoPedidoPage() {
               </div>
             </div>
 
-            {/* LOS 4 INPUTS DINÁMICOS */}
+            {/* LOS 4 INPUTS DINÁMICOS - LIMPIEZA DE DUPLICADOS */}
             {selectedGroup && (
               <div className="grid grid-cols-2 gap-3 mb-8 animate-in fade-in slide-in-from-top-2">
                 <div className="space-y-1">
@@ -508,11 +527,18 @@ export default function NuevoPedidoPage() {
                       onClick={() => addToCart(m)}
                       className="w-full text-left p-4 hover:bg-emerald-500/10 transition-colors group flex justify-between items-center"
                     >
-                      <div>
-                        <p className="text-white font-bold group-hover:text-emerald-400 transition-colors">{m.ident_code}</p>
-                        <p className="text-[10px] text-neutral-500 line-clamp-2">{m.descripcion}</p>
+                      <div className="flex-1 pr-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-white font-bold group-hover:text-emerald-400 transition-colors leading-none">{m.ident_code}</p>
+                          {(m.stock || 0) > 0 ? (
+                            <span className="text-[9px] bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded font-black uppercase">Stock: {m.stock}</span>
+                          ) : (
+                            <span className="text-[9px] bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter text-nowrap">Sin Stock</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-neutral-500 line-clamp-1">{m.descripcion}</p>
                       </div>
-                      <Plus className="text-neutral-700 group-hover:text-emerald-500" size={16} />
+                      <Plus className="text-neutral-700 group-hover:text-emerald-500 flex-shrink-0" size={16} />
                     </button>
                   ))}
                 </div>
@@ -544,7 +570,14 @@ export default function NuevoPedidoPage() {
                 {materialesEncontrados.map(mat => (
                   <div key={mat.id} className="glass rounded-2xl p-4 border border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div className="flex-1">
-                      <p className="text-emerald-400 font-bold text-lg leading-tight">{mat.ident_code}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-emerald-400 font-bold text-lg leading-tight">{mat.ident_code}</p>
+                        {(mat.stock || 0) > 0 ? (
+                          <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-lg font-black uppercase">Stock: {mat.stock}</span>
+                        ) : (
+                          <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-lg font-black uppercase">Sin Stock</span>
+                        )}
+                      </div>
                       <p className="text-neutral-300 text-sm line-clamp-2 mt-1">{mat.descripcion}</p>
                       <span className="inline-block mt-2 text-[10px] bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full">
                         {mat.grupo}
