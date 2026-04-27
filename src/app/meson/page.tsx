@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { 
   ScanLine, Search, PackageOpen, CheckCircle2, 
-  ChevronRight, User, AlertCircle, Loader2, 
+  ChevronRight, User, Users, ArrowRight, AlertCircle, Loader2, 
   MapPin, Plus, Minus, Trash2, ShoppingBag, X, Map, Camera,
   Database, ClipboardList, Package
 } from 'lucide-react'
@@ -126,10 +126,35 @@ function MesonContent() {
   const itemsToProcess = isDirectMode ? directItems : (pedidoSeleccionado?.pedido_items || [])
 
   const handleUpdateQty = (id: string, delta: number) => {
-    setQuantitiesToDeliver(prev => ({
-      ...prev,
-      [id]: Math.max(0, (prev[id] || 0) + delta)
-    }))
+    const item = itemsToProcess.find(i => i.id === id)
+    const material = item?.materiales || item
+    const totalStock = material?.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+
+    setQuantitiesToDeliver(prev => {
+      const current = prev[id] || 0
+      const next = current + delta
+      
+      // Si hay stock, el mínimo es 1. Solo permitimos 0 si el stock es 0 (quiebre real).
+      const minQty = totalStock > 0 ? 1 : 0
+      if (next < minQty) return { ...prev, [id]: minQty }
+      
+      if (delta > 0 && next > totalStock) {
+        toast.error('Stock insuficiente', { 
+          description: `Solo hay ${totalStock} unidades en bodega para este material.` 
+        })
+        return prev
+      }
+
+      return { ...prev, [id]: next }
+    })
+  }
+
+  const removeItem = (id: string) => {
+    setDirectItems(prev => prev.filter(i => i.id !== id))
+    setQuantitiesToDeliver(prev => {
+      const { [id]: _, ...rest } = prev
+      return rest
+    })
   }
 
   const handleDespachar = () => {
@@ -265,31 +290,62 @@ function MesonContent() {
 
   const addToDirect = (mat: any) => {
     if (!selectedIso) return toast.error('Selecciona primero un Isométrico')
+    
+    const totalStock = mat.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+    const hasStock = totalStock > 0
+
     const exists = directItems.find(i => i.id === mat.id)
     if (exists) {
-      setQuantitiesToDeliver(prev => ({ ...prev, [mat.id]: (prev[mat.id] || 0) + 1 }))
+      setQuantitiesToDeliver(prev => {
+        const current = prev[mat.id] || 0
+        if (current + 1 > totalStock && hasStock) {
+          toast.error('Límite de stock alcanzado')
+          return prev
+        }
+        return { ...prev, [mat.id]: current + (hasStock ? 1 : 0) }
+      })
     } else {
       setDirectItems([...directItems, { ...mat, iso: selectedIso }])
-      setQuantitiesToDeliver(prev => ({ ...prev, [mat.id]: 1 }))
+      setQuantitiesToDeliver(prev => ({ ...prev, [mat.id]: hasStock ? 1 : 0 }))
+      if (!hasStock) {
+        toast.warning('Material sin stock', { description: 'Se añadirá al pedido con cantidad 0 para registrar la falta.' })
+      }
     }
     setItemSearch(''); setFoundItems([])
   }
 
   const procesarDespacho = async (pedidoInfo: any, items: any[]) => {
-    const total = items.reduce((acc, i) => acc + (quantitiesToDeliver[i.id] || 0), 0)
-    if (total <= 0) return toast.error('No hay cantidades para entregar')
+    if (items.length === 0) return toast.error('No hay materiales para entregar')
 
     setIsLoading(true)
     try {
       let userId = isDirectMode ? directUser.id : pedidoInfo?.usuarios?.id
-      if (isDirectMode && !userId) {
-        const { data: newUser, error } = await supabase.from('usuarios').insert({ 
-          rut: directUser.rut.replace(/[\.-]/g, '').trim(), 
-          nombre: directUser.nombre, 
-          telefono: directUser.telefono 
-        }).select().single()
-        if (error) throw error
-        userId = newUser.id
+      
+      if (isDirectMode) {
+        // Validaciones de Registro
+        if (!directUser.nombre || directUser.nombre.length < 3 || directUser.nombre === 'NUEVO OPERARIO') {
+          throw new Error('Debe ingresar un nombre válido para el operario')
+        }
+        const phoneDigits = directUser.telefono.replace('+569', '')
+        if (phoneDigits.length !== 8) {
+          throw new Error('El teléfono debe tener exactamente 8 dígitos (después del +569)')
+        }
+
+        if (!userId) {
+          const { data: newUser, error } = await supabase.from('usuarios').insert({ 
+            rut: directUser.rut.replace(/[\.-]/g, '').trim(), 
+            nombre: directUser.nombre, 
+            telefono: directUser.telefono 
+          }).select().single()
+          if (error) throw error
+          userId = newUser.id
+        } else {
+          // Actualizar datos por si el bodeguero corrigió nombre/teléfono
+          await supabase.from('usuarios').update({ 
+            nombre: directUser.nombre, 
+            telefono: directUser.telefono 
+          }).eq('id', userId)
+        }
       }
 
       let activePedidoId = pedidoInfo?.id
@@ -307,36 +363,47 @@ function MesonContent() {
       }
 
       for (const item of items) {
-        let aEntregar = quantitiesToDeliver[item.id] || 0
-        if (aEntregar <= 0) continue
-
-        const existencias = item.materiales ? item.materiales.existencias : item.existencias
+        let aEntregarTotal = quantitiesToDeliver[item.id] || 0
         const materialId = item.materiales ? item.materiales.id : item.id
-        const sortedStock = [...(existencias || [])].sort((a, b) => b.cantidad - a.cantidad)
-
-        for (const stock of sortedStock) {
-          if (aEntregar <= 0) break
-          const aDescontar = Math.min(aEntregar, stock.cantidad)
-          await supabase.from('existencias').update({ cantidad: stock.cantidad - aDescontar }).eq('id', stock.id)
-          await supabase.from('movimientos').insert({
-            material_id: materialId, ubicacion_id: stock.ubicacion_id, tipo: 'OUT', cantidad: aDescontar,
-            referencia_id: activePedidoId, usuario_id: userId
+        
+        // 1. Registrar el Item en el Pedido (Solicitado vs Entregado)
+        if (isDirectMode) {
+          await supabase.from('pedido_items').insert({
+            pedido_id: activePedidoId,
+            material_id: materialId,
+            cantidad_solicitada: aEntregarTotal > 0 ? aEntregarTotal : 1, // Si es 0, marcamos que pidió 1 para el quiebre
+            cantidad_entregada: aEntregarTotal,
+            isometrico_id: selectedIso?.id
           })
-          
-          if (isDirectMode) {
-            // Registrar los items en el pedido fantasma
-            await supabase.from('pedido_items').insert({
-              pedido_id: activePedidoId,
-              material_id: materialId,
-              cantidad_solicitada: aDescontar,
-              cantidad_entregada: aDescontar,
-              isometrico_id: selectedIso?.id
+        } else {
+          // Si no es directo, el item ya existe, solo actualizamos lo entregado
+          await supabase.from('pedido_items').update({
+            cantidad_entregada: (item.cantidad_entregada || 0) + aEntregarTotal
+          }).eq('id', item.id)
+        }
+
+        // 2. Descontar Stock y Crear Movimientos (Solo si se entregó algo > 0)
+        if (aEntregarTotal > 0) {
+          let restante = aEntregarTotal
+          const existencias = item.materiales ? item.materiales.existencias : item.existencias
+          const sortedStock = [...(existencias || [])].sort((a, b) => b.cantidad - a.cantidad)
+
+          for (const stock of sortedStock) {
+            if (restante <= 0) break
+            const aDescontar = Math.min(restante, stock.cantidad)
+            
+            await supabase.from('existencias').update({ cantidad: stock.cantidad - aDescontar }).eq('id', stock.id)
+            await supabase.from('movimientos').insert({
+              material_id: materialId, 
+              ubicacion_id: stock.ubicacion_id, 
+              tipo: 'OUT', 
+              cantidad: aDescontar,
+              referencia_id: activePedidoId, 
+              usuario_id: userId
             })
-          } else {
-            const nuevaCantidad = (item.cantidad_entregada || 0) + aDescontar
-            await supabase.from('pedido_items').update({ cantidad_entregada: nuevaCantidad }).eq('id', item.id)
+            
+            restante -= aDescontar
           }
-          aEntregar -= aDescontar
         }
       }
 
@@ -506,23 +573,21 @@ function MesonContent() {
                 <div 
                   onClick={() => !selectedIso && isoInputRef.current?.focus()}
                   className={`relative border-2 transition-all duration-500 rounded-3xl p-6 shadow-2xl ${
-                    selectedIso 
-                      ? 'bg-blue-500/10 border-blue-500/50' 
-                      : 'bg-emerald-500/5 border-emerald-500/20'
+                    (!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? 'bg-amber-500/10 border-amber-500/50' : selectedIso ? 'bg-blue-500/10 border-blue-500/50' : 'bg-emerald-500/5 border-emerald-500/20'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-4">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner transition-colors duration-500 ${
-                        selectedIso ? 'bg-blue-500 text-black border-blue-400' : 'bg-black text-emerald-500 border-emerald-500/20'
+                        (!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? 'bg-amber-500 text-black border-amber-400' : selectedIso ? 'bg-blue-500 text-black border-blue-400' : 'bg-black text-emerald-500 border-emerald-500/20'
                       }`}>
-                        <User size={24} />
+                        {(!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? <Users size={24} /> : <User size={24} />}
                       </div>
                       <div>
-                        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${selectedIso ? 'text-blue-400' : 'text-emerald-500'}`}>
-                          {selectedIso ? 'Plano Seleccionado' : 'Entrega Directa'}
+                        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${(!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? 'text-amber-500' : selectedIso ? 'text-blue-400' : 'text-emerald-500'}`}>
+                          {(!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? 'REGISTRO DE NUEVO TRABAJADOR' : selectedIso ? 'Plano Seleccionado' : 'Entrega Directa'}
                         </h4>
-                        <p className="text-sm font-black text-white uppercase italic tracking-tight">{directUser.nombre || 'Nuevo Operario'}</p>
+                        <p className="text-sm font-black text-white uppercase italic tracking-tight">{directUser.nombre || 'Nombre no registrado'}</p>
                         <p className="text-[9px] font-mono text-neutral-500">{directUser.rut}</p>
                       </div>
                     </div>
@@ -533,6 +598,36 @@ function MesonContent() {
                       </div>
                     )}
                   </div>
+
+                  {/* Formulario de Registro Exprés */}
+                  {(!directUser.id || directUser.nombre === 'NUEVO OPERARIO' || !directUser.nombre) && (
+                    <div 
+                      onClick={e => e.stopPropagation()} // <-- Evita que el clic en el formulario active el foco del Plano
+                      className="mb-6 space-y-3 bg-black/50 p-4 rounded-2xl border border-amber-500/20 animate-in slide-in-from-top-2 relative z-50"
+                    >
+                      <input 
+                        type="text" 
+                        value={directUser.nombre === 'NUEVO OPERARIO' ? '' : directUser.nombre} 
+                        onChange={e => setDirectUser({...directUser, nombre: e.target.value.toUpperCase()})}
+                        placeholder="NOMBRE COMPLETO" 
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-amber-500/50"
+                      />
+                      <div className="flex gap-2">
+                        <div className="bg-neutral-800 px-3 py-3 rounded-xl text-[10px] font-black text-neutral-500 flex items-center">+569</div>
+                        <input 
+                          type="tel" 
+                          maxLength={8}
+                          value={(directUser.telefono || '').replace('+569', '')} 
+                          onChange={e => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            setDirectUser({...directUser, telefono: '+569' + val});
+                          }}
+                          placeholder="8 DÍGITOS" 
+                          className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-xs text-white font-mono outline-none focus:border-amber-500/50"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Paso 1: Buscador de Isométricos (Integrado en tarjeta si no hay selección) */}
                   {!selectedIso ? (
@@ -595,20 +690,49 @@ function MesonContent() {
                     </div>
                     {foundItems.length > 0 && (
                       <div className="absolute top-full left-0 w-full mt-2 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl z-[60] overflow-hidden divide-y divide-neutral-800 animate-in fade-in zoom-in-95">
-                        {foundItems.map(mat => (
-                          <button key={mat.id} onClick={() => addToDirect(mat)} className="w-full text-left p-5 hover:bg-emerald-500/10 transition-colors flex justify-between items-center group/mat">
-                            <div className="flex-1 min-w-0 pr-4">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Ident Code:</span>
-                                <span className="text-sm font-mono font-black text-white tracking-tighter">{mat.ident_code}</span>
+                        {foundItems.map(mat => {
+                          const totalStock = mat.existencias?.reduce((acc: number, ex: any) => acc + Number(ex.cantidad), 0) || 0
+                          const hasStock = totalStock > 0
+
+                          return (
+                            <button 
+                              key={mat.id} 
+                              onClick={() => addToDirect(mat)} 
+                              className={`w-full text-left p-5 transition-colors flex justify-between items-center group/mat ${
+                                hasStock ? 'hover:bg-emerald-500/10' : 'hover:bg-rose-500/5'
+                              }`}
+                            >
+                              <div className="flex-1 min-w-0 pr-4">
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className="text-sm font-mono font-black text-white tracking-tighter">{mat.ident_code}</span>
+                                  {hasStock ? (
+                                    <span className="text-[9px] font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20">
+                                      STOCK: {totalStock}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-black bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded border border-rose-500/20">
+                                      SIN STOCK
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-neutral-500 font-bold uppercase italic truncate mb-1">{mat.descripcion}</p>
+                                {hasStock && (
+                                  <div className="flex items-center gap-1.5 text-[9px] font-black text-neutral-600 uppercase">
+                                    <MapPin size={10} className="text-emerald-500" />
+                                    {mat.existencias?.map((ex: any) => `${ex.ubicaciones?.zona}${ex.ubicaciones?.rack}${ex.ubicaciones?.nivel}`).join(' | ')}
+                                  </div>
+                                )}
                               </div>
-                              <p className="text-[10px] text-neutral-500 font-bold uppercase italic truncate">{mat.descripcion}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover/mat:bg-emerald-500 group-hover/mat:text-black transition-all shadow-lg">
-                              <Plus size={20} />
-                            </div>
-                          </button>
-                        ))}
+                              <div className="flex items-center gap-2">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-lg ${
+                                  hasStock ? 'bg-emerald-500/10 text-emerald-500 group-hover/mat:bg-emerald-500 group-hover/mat:text-black' : 'bg-rose-500/10 text-rose-500 group-hover/mat:bg-rose-500 group-hover/mat:text-white'
+                                }`}>
+                                  <Plus size={20} />
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -628,7 +752,7 @@ function MesonContent() {
 
               {itemsToProcess.map(item => {
                 const material = item.materiales || item
-                const requested = item.cantidad_solicitada || item.cantidad
+                const requested = isDirectMode ? 1 : (item.cantidad_solicitada || item.cantidad || 0)
                 const delivered = item.cantidad_entregada || 0
                 const toDeliver = quantitiesToDeliver[item.id] || 0
                 const stockTotal = material.existencias?.reduce((acc: number, s: any) => acc + s.cantidad, 0) || 0
@@ -660,7 +784,16 @@ function MesonContent() {
                     </div>
 
                     <div className="flex items-center justify-between pt-4 border-t border-neutral-800/50">
-                      <p className="text-[9px] font-black text-emerald-500/80 uppercase tracking-widest italic">A DESPACHAR:</p>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => removeItem(item.id)}
+                          className="p-2 text-neutral-700 hover:text-rose-500 transition-colors"
+                          title="Quitar del carro"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <p className="text-[9px] font-black text-emerald-500/80 uppercase tracking-widest italic">A DESPACHAR:</p>
+                      </div>
                       <div className="flex items-center gap-6">
                         <button 
                           onClick={() => handleUpdateQty(item.id, -1)}
@@ -818,20 +951,36 @@ function MesonContent() {
         </div>
 
         {/* Botón de Acción Flotante App */}
-        {(pedidoSeleccionado || isDirectMode) && itemsToProcess.some(i => (quantitiesToDeliver[i.id] || 0) > 0) && (
+        {(pedidoSeleccionado || isDirectMode) && itemsToProcess.length > 0 && (
           <div className="absolute bottom-6 left-6 right-6 z-50">
-            <button 
-              onClick={handleDespachar}
-              disabled={isLoading}
-              className={`w-full ${isDirectMode ? 'bg-cyan-500 hover:bg-cyan-400' : 'bg-emerald-500 hover:bg-emerald-400'} text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 shadow-2xl ${isDirectMode ? 'shadow-cyan-900/40' : 'shadow-emerald-900/40'} active:scale-95 transition-all uppercase tracking-widest text-xs`}
-            >
-              {isLoading ? <Loader2 className="animate-spin" /> : (
-                <>
-                  <Package size={18} />
-                  <span>{isDirectMode ? 'Confirmar Entrega Directa' : 'Confirmar Despacho'}</span>
-                </>
-              )}
-            </button>
+            {(() => {
+              const totalToDeliver = itemsToProcess.reduce((acc, i) => acc + (quantitiesToDeliver[i.id] || 0), 0)
+              const isQuiebre = totalToDeliver === 0
+              
+              return (
+                <button 
+                  onClick={handleDespachar}
+                  disabled={isLoading}
+                  className={`w-full ${
+                    isQuiebre 
+                      ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-900/40' 
+                      : (isDirectMode ? 'bg-cyan-500 hover:bg-cyan-400 shadow-cyan-900/40' : 'bg-emerald-500 hover:bg-emerald-400 shadow-emerald-900/40')
+                  } text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all uppercase tracking-widest text-xs`}
+                >
+                  {isLoading ? <Loader2 className="animate-spin" /> : (
+                    <>
+                      {isQuiebre ? <AlertCircle size={18} /> : <Package size={18} />}
+                      <span>
+                        {isQuiebre 
+                          ? 'Confirmar Quiebre de Stock' 
+                          : (isDirectMode ? 'Confirmar Entrega Directa' : 'Confirmar Despacho')
+                        }
+                      </span>
+                    </>
+                  )}
+                </button>
+              )
+            })()}
           </div>
         )}
 

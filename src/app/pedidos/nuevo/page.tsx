@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { 
   Plus, Minus, Search, ClipboardList, Database, 
   X, CheckCircle2, Loader2, User as UserIcon, ScrollText, 
-  ChevronRight, ShoppingBag
+  ChevronRight, ShoppingBag, Trash2
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -133,6 +133,11 @@ export default function NuevoPedido() {
       return [...prev, { material: m, cantidad: qty, isometrico }]
     })
     toast.success(`${qty}x ${m.ident_code} añadido`)
+  }
+
+  const removeFromCart = (materialId: string) => {
+    setCart(prev => prev.filter(i => i.material.id !== materialId))
+    toast.info('Material quitado del pedido')
   }
 
   const updateLocalQty = (id: string, delta: number) => {
@@ -335,33 +340,42 @@ export default function NuevoPedido() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center bg-black border border-neutral-800 rounded-lg overflow-hidden h-10">
-                          <button 
-                            onClick={() => updateLocalQty(m.id, -1)}
-                            className="w-8 h-full flex items-center justify-center hover:bg-neutral-900 text-neutral-500 active:text-white transition-colors"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <div className="w-10 h-full flex items-center justify-center border-x border-neutral-800">
-                            <span className="text-xs font-black text-white">{localQtys[m.id] || 1}</span>
+                        <div className="flex items-center gap-2">
+                          {cart.some(i => i.material.id === m.id) && (
+                            <button 
+                              onClick={() => removeFromCart(m.id)}
+                              className="p-3 bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
+                              title="Quitar del pedido"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                          <div className="flex items-center bg-black border border-neutral-800 rounded-lg overflow-hidden h-10">
+                            <button 
+                              onClick={() => updateLocalQty(m.id, -1)}
+                              className="w-8 h-full flex items-center justify-center hover:bg-neutral-900 text-neutral-500 active:text-white transition-colors"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <div className="w-10 h-full flex items-center justify-center border-x border-neutral-800">
+                              <span className="text-xs font-black text-white">{localQtys[m.id] || 1}</span>
+                            </div>
+                            <button 
+                              onClick={() => updateLocalQty(m.id, 1)}
+                              className="w-8 h-full flex items-center justify-center hover:bg-neutral-900 text-neutral-500 active:text-white transition-colors"
+                            >
+                              <Plus size={14} />
+                            </button>
                           </div>
                           <button 
-                            onClick={() => updateLocalQty(m.id, 1)}
-                            className="w-8 h-full flex items-center justify-center hover:bg-neutral-900 text-neutral-500 active:text-white transition-colors"
+                            onClick={() => addToCart(m)} 
+                            className={`p-3 rounded-lg transition-all active:scale-90 ${
+                              isOutOfStock ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'
+                            }`}
                           >
-                            <Plus size={14} />
+                            <ShoppingBag size={18} />
                           </button>
                         </div>
-                        <button 
-                          onClick={() => addToCart(m)} 
-                          className={`p-3 rounded-lg transition-all active:scale-90 ${
-                            isOutOfStock ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'
-                          }`}
-                        >
-                          <ShoppingBag size={18} />
-                        </button>
-                      </div>
                     </div>
                   )
                 })}

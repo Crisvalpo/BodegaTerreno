@@ -60,6 +60,10 @@ export default function LoginPage() {
     e.preventDefault()
     if (!nombre || !telefono) return toast.error('Parámetros incompletos')
     
+    if (telefono.length !== 8) {
+      return toast.error('El teléfono debe tener exactamente 8 dígitos')
+    }
+
     setIsLoading(true)
     try {
       const { data: newUser, error } = await supabase
@@ -143,9 +147,10 @@ export default function LoginPage() {
                       </div>
                       <input 
                         type="tel" 
+                        maxLength={8}
                         value={telefono}
                         onChange={e => setTelefono(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                        placeholder="12345678"
+                        placeholder="8 DÍGITOS"
                         className="flex-1 bg-black border border-neutral-800 rounded-xl px-6 py-4 text-sm font-mono text-white focus:outline-none focus:border-emerald-500/50 tracking-widest"
                       />
                     </div>

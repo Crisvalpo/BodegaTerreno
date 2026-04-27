@@ -59,6 +59,12 @@ export default function UsuariosAdminPage() {
       return
     }
 
+    const phoneDigits = (newUser.telefono || '').replace('+569', '')
+    if (phoneDigits.length !== 8) {
+      toast.error('El teléfono debe tener exactamente 8 dígitos (después del +569)')
+      return
+    }
+
     setIsSaving(true)
     const { data, error } = await supabase
       .from('usuarios')
@@ -322,13 +328,20 @@ export default function UsuariosAdminPage() {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-2">Teléfono</label>
-                <input 
-                  type="tel"
-                  placeholder="+569..."
-                  value={newUser.telefono}
-                  onChange={e => setNewUser({...newUser, telefono: e.target.value})}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500 transition-colors"
-                />
+                <div className="flex gap-2">
+                  <div className="bg-neutral-800 px-4 py-4 rounded-xl text-[10px] font-black text-neutral-500 flex items-center">+569</div>
+                  <input 
+                    type="tel"
+                    maxLength={8}
+                    placeholder="8 DÍGITOS"
+                    value={(newUser.telefono || '').replace('+569', '')}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                      setNewUser({...newUser, telefono: '+569' + val});
+                    }}
+                    className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500 transition-colors font-mono"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-4 mt-8">
