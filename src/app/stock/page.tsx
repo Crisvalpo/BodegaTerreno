@@ -18,8 +18,10 @@ import {
   ArrowUpFromLine,
   History,
   Clock,
-  Map
+  Map,
+  Download
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { getStockAction } from '../actions/stock'
 
 type StockItem = {
@@ -248,9 +250,84 @@ function StockContent() {
     return acc
   }, [])
 
+  // 3. Filtrar Consumo por Isométrico
+  const filteredIsos = isometricConsumption.map(isoGroup => ({
+    ...isoGroup,
+    materials: isoGroup.materials.filter((m: any) => 
+      isoGroup.iso.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.ident.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.descripcion.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })).filter(isoGroup => isoGroup.materials.length > 0)
+
   // Cálculos rápidos
   const totalItems = groupedStock.length
   const totalQuantity = groupedStock.reduce((acc, curr) => acc + curr.cantidad, 0)
+
+  const handleExport = () => {
+    const wb = XLSX.utils.book_new()
+    const dateStr = new Date().toLocaleDateString('es-CL').replace(/\//g, '-')
+    
+    // 1. HOJA: EXISTENCIAS
+    const stockData = groupedStock.map(item => ({
+      'Ident Code': item.materiales?.ident_code,
+      'Descripción': item.materiales?.descripcion,
+      'Familia': item.materiales?.part_group,
+      'Ubicaciones': item.ubicaciones_list.join(', '),
+      'Stock Actual': item.cantidad,
+      'Reservado': item.cantidad_reservada
+    }))
+    const wsStock = XLSX.utils.json_to_sheet(stockData)
+    XLSX.utils.book_append_sheet(wb, wsStock, "Existencias")
+
+    // 2. HOJA: CONSUMO POR ISOMÉTRICOS
+    const isoData = filteredIsos.flatMap(isoGroup => 
+      isoGroup.materials.map((m: any) => ({
+        'Isométrico': isoGroup.iso,
+        'Ident Code': m.ident,
+        'Descripción': m.descripcion,
+        'Total Entregado': m.total
+      }))
+    )
+    if (isoData.length > 0) {
+      const wsIso = XLSX.utils.json_to_sheet(isoData)
+      XLSX.utils.book_append_sheet(wb, wsIso, "Consumo Isométricos")
+    }
+
+    // 3. HOJA: QUIEBRES DE STOCK
+    const shortageData = shortages.flatMap(s => 
+      s.casos.map((c: any) => ({
+        'Ident Code': s.ident,
+        'Descripción': s.descripcion,
+        'Faltante Total Material': s.totalFaltante,
+        'Trabajador': c.usuario,
+        'Isométrico': c.isometrico,
+        'Cant. Faltante Caso': c.faltante,
+        'Observación Bodega': c.observacion
+      }))
+    )
+    if (shortageData.length > 0) {
+      const wsShortage = XLSX.utils.json_to_sheet(shortageData)
+      XLSX.utils.book_append_sheet(wb, wsShortage, "Quiebres de Stock")
+    }
+
+    // 4. HOJA: HISTORIAL
+    const historyData = history.map(mov => ({
+      'Fecha/Hora': new Date(mov.timestamp).toLocaleString('es-CL'),
+      'Tipo': mov.tipo,
+      'Ident Code': mov.materiales?.ident_code,
+      'Descripción': mov.materiales?.descripcion,
+      'Cantidad': mov.cantidad,
+      'Operario': mov.usuarios?.nombre || 'SISTEMA',
+      'Ubicación': mov.ubicaciones ? `${mov.ubicaciones.rack}-${mov.ubicaciones.nivel}` : '--'
+    }))
+    const wsHistory = XLSX.utils.json_to_sheet(historyData)
+    XLSX.utils.book_append_sheet(wb, wsHistory, "Historial Reciente")
+
+    // Descargar Archivo Maestro
+    XLSX.writeFile(wb, `Reporte_Maestro_Bodega_${dateStr}.xlsx`)
+    toast.success('Reporte Maestro Generado', { description: 'Se ha descargado un archivo Excel con todas las pestañas de control.' })
+  }
 
   return (
     <div className="min-h-screen bg-neutral-950 p-4 md:p-12 relative overflow-hidden">
@@ -293,6 +370,13 @@ function StockContent() {
                 {groups.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+            >
+              <Download size={16} />
+              Exportar Excel
+            </button>
           </div>
         </header>
 
@@ -469,8 +553,8 @@ function StockContent() {
 
         {activeTab === 'isos' && (
           <div className="space-y-6">
-            {isometricConsumption.length > 0 ? (
-              isometricConsumption.map((isoGroup, idx) => (
+            {filteredIsos.length > 0 ? (
+              filteredIsos.map((isoGroup, idx) => (
                 <div key={idx} className="glass rounded-3xl border border-white/5 overflow-hidden shadow-xl">
                   <div className="bg-white/5 px-8 py-4 flex items-center justify-between border-b border-white/5">
                     <h3 className={`text-xl font-black flex items-center gap-3 italic ${
