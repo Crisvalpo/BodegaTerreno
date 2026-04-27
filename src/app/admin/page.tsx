@@ -16,10 +16,22 @@ export default function AdminDashboard() {
 
     try {
       // 1. Fetch de todas las tablas críticas
-      const { data: materiales } = await supabase.from('materiales').select('*').order('ident_code')
-      const { data: existencias } = await supabase.from('existencias').select('*, materiales(ident_code, descripcion), ubicaciones(zona, rack, nivel)')
-      const { data: movimientos } = await supabase.from('movimientos').select('*, materiales(ident_code), usuarios(nombre), ubicaciones(zona, rack, nivel)')
-      const { data: pedidos } = await supabase.from('pedidos').select('*, usuarios(nombre), isometricos(codigo)')
+      const { data: materiales } = await supabase.from('materiales').select('*').order('ident_code').limit(10000)
+      const { data: existencias } = await supabase.from('existencias').select('*, materiales(ident_code, descripcion), ubicaciones(zona, rack, nivel)').limit(10000)
+      const { data: movimientos } = await supabase.from('movimientos').select('*, materiales(ident_code, descripcion), usuarios(nombre), ubicaciones(zona, rack, nivel)').order('created_at', { ascending: false }).limit(10000)
+      const { data: pedidos } = await supabase.from('pedidos').select('*, usuarios(nombre), isometricos(codigo)').order('created_at', { ascending: false }).limit(10000)
+      
+      // 1.1 Fetch de Quiebres (basado en la lógica de stock/page)
+      const { data: pItems } = await supabase
+        .from('pedido_items')
+        .select(`
+          cantidad_solicitada, cantidad_entregada,
+          materiales!inner(ident_code, descripcion),
+          pedidos!inner(id, observaciones, usuarios(nombre), estado),
+          isometricos(codigo)
+        `)
+        .eq('pedidos.estado', 'entregado')
+        .limit(10000)
 
       // 2. Crear el libro de Excel
       const wb = XLSX.utils.book_new()
@@ -67,7 +79,47 @@ export default function AdminDashboard() {
         XLSX.utils.book_append_sheet(wb, wsPed, "PEDIDOS_HISTORICO")
       }
 
-      // 4. Descargar
+      // 4. Hoja: QUIEBRES DE STOCK
+      if (pItems) {
+        const agg: any = {}
+        pItems.forEach((item: any) => {
+          const solicitado = Number(item.cantidad_solicitada)
+          const entregado = Number(item.cantidad_entregada || 0)
+          if (entregado < solicitado) {
+            const ident = item.materiales?.ident_code
+            if (!agg[ident]) agg[ident] = { descripcion: item.materiales?.descripcion, totalFaltante: 0, casos: [] }
+            const faltante = solicitado - entregado
+            agg[ident].totalFaltante += faltante
+            agg[ident].casos.push(`${item.pedidos?.usuarios?.nombre} (ISO: ${item.isometricos?.codigo || 'VALE'}) - Faltan: ${faltante}`)
+          }
+        })
+        const shortageData = Object.entries(agg).map(([ident, details]: [string, any]) => ({
+          IDENT_CODE: ident,
+          DESCRIPCION: details.descripcion,
+          CANT_FALTANTE_TOTAL: details.totalFaltante,
+          DETALLE_CASOS: details.casos.join(' | ')
+        }))
+        if (shortageData.length > 0) {
+          const wsShort = XLSX.utils.json_to_sheet(shortageData)
+          XLSX.utils.book_append_sheet(wb, wsShort, "QUIEBRES_DETECTADOS")
+        }
+      }
+
+      // 5. Hoja: CONSUMO ISOMÉTRICOS (Simplificado para Auditoría)
+      if (movimientos) {
+        const outMovs = movimientos.filter(m => m.tipo === 'OUT')
+        const wsConsumo = XLSX.utils.json_to_sheet(outMovs.map(m => ({
+          FECHA: new Date(m.created_at).toLocaleString(),
+          MATERIAL: m.materiales?.ident_code,
+          DESCRIPCION: m.materiales?.descripcion,
+          CANTIDAD: m.cantidad,
+          OPERARIO: m.usuarios?.nombre,
+          REFERENCIA_PEDIDO: m.referencia_id
+        })))
+        XLSX.utils.book_append_sheet(wb, wsConsumo, "CONSUMO_DETALLADO")
+      }
+
+      // 6. Descargar
       const fileName = `AUDITORIA_BODEGA_${new Date().toISOString().split('T')[0]}.xlsx`
       XLSX.writeFile(wb, fileName)
       

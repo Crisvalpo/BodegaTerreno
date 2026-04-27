@@ -18,6 +18,7 @@ export async function getStockAction() {
         materiales (ident_code, descripcion, part_group),
         ubicaciones (zona, rack, nivel)
       `)
+      .limit(10000)
     
     if (error) throw error
     return { success: true, data }

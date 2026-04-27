@@ -20,6 +20,7 @@ export async function GET() {
         materiales (ident_code, descripcion, part_group, input_1, input_2, input_3, input_4),
         ubicaciones (zona, rack, nivel)
       `)
+      .limit(10000)
     
     if (error) throw error
     

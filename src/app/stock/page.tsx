@@ -22,6 +22,7 @@ import {
   Download
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import Cookies from 'js-cookie'
 import { getStockAction } from '../actions/stock'
 
 type StockItem = {
@@ -55,8 +56,26 @@ function StockContent() {
   const [isometricConsumption, setIsometricConsumption] = useState<any[]>([])
   const [shortages, setShortages] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'stock' | 'history' | 'isos' | 'shortages'>('stock')
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
+    // Obtener rol del usuario desde la sesión o cookies (Sistema Nativo)
+    const fetchUser = async () => {
+      try {
+        const storedUser = Cookies.get('user') || localStorage.getItem('bodega_user')
+        if (storedUser) {
+          const user = JSON.parse(storedUser)
+          console.log('Sesión detectada:', user.nombre, 'Rol:', user.rol)
+          setUserRole(user.rol || null)
+        } else {
+          console.log('No se encontró sesión activa en cookies ni localStorage')
+        }
+      } catch (err) {
+        console.error('Error al leer sesión:', err)
+      }
+    }
+    fetchUser()
+
     const tab = searchParams.get('tab')
     if (tab === 'history') setActiveTab('history')
     if (tab === 'isos') setActiveTab('isos')
@@ -133,7 +152,7 @@ function StockContent() {
         ubicaciones(rack, nivel)
       `)
       .order('timestamp', { ascending: false })
-      .limit(20)
+      .limit(5000)
     setHistory(data || [])
   }
 
@@ -370,13 +389,15 @@ function StockContent() {
                 {groups.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
-            <button 
-              onClick={handleExport}
-              className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
-            >
-              <Download size={16} />
-              Exportar Excel
-            </button>
+            {userRole === 'admin' && (
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+              >
+                <Download size={16} />
+                Exportar Excel
+              </button>
+            )}
           </div>
         </header>
 
