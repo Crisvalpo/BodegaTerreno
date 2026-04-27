@@ -97,7 +97,7 @@ export default function Home() {
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Database className="w-12 h-12 text-emerald-500 animate-pulse" />
-          <p className="text-neutral-700 font-black uppercase tracking-[0.4em] text-[10px]">Cargando Sistema...</p>
+          <p className="text-neutral-700 font-bold tracking-[0.2em] text-[10px]">Cargando Sistema...</p>
         </div>
       </div>
     )
@@ -117,8 +117,8 @@ export default function Home() {
               <User className="w-7 h-7 text-emerald-500" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 leading-none mb-1">{user.rol}</span>
-              <h1 className="text-2xl font-black tracking-tighter text-white leading-none uppercase italic">
+              <span className="text-[9px] font-bold tracking-widest text-emerald-500/60 leading-none mb-1 capitalize">{user.rol}</span>
+              <h1 className="text-2xl font-bold tracking-tight text-white leading-none">
                 {user.nombre.split(' ')[0]}
               </h1>
             </div>
@@ -216,10 +216,10 @@ export default function Home() {
 
         {/* Footer de App */}
         <footer className="pt-6 border-t border-neutral-900 flex flex-col items-center gap-2 opacity-20">
-          <p className="text-[9px] text-neutral-500 font-black uppercase tracking-[0.3em]">Bodega Terreno</p>
+          <p className="text-[9px] text-neutral-500 font-bold tracking-[0.3em]">Bodega Terreno</p>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="text-[8px] font-bold text-neutral-700 uppercase italic">Conectado</span>
+            <span className="text-[8px] font-semibold text-neutral-700">Conectado</span>
           </div>
         </footer>
       </div>
@@ -236,8 +236,8 @@ function StatCard({ label, value, accent }: { label: string, value: string, acce
   }
   return (
     <div className={`p-5 rounded-xl border flex flex-col items-center justify-center ${accents[accent]}`}>
-      <span className="text-2xl font-mono font-black italic">{value}</span>
-      <span className="text-[8px] font-black uppercase tracking-widest opacity-40">{label}</span>
+      <span className="text-2xl font-mono font-bold">{value}</span>
+      <span className="text-[8px] font-semibold tracking-widest opacity-40">{label}</span>
     </div>
   )
 }
@@ -272,7 +272,7 @@ function MenuCard({ href, title, desc, icon, accent, badges }: {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-1.5 mb-1">
-            <h3 className="text-lg font-black text-white tracking-tighter uppercase italic leading-none">
+            <h3 className="text-lg font-bold text-white tracking-tight leading-none">
               {title}
             </h3>
             <div className="flex gap-1 ml-auto">
@@ -283,7 +283,7 @@ function MenuCard({ href, title, desc, icon, accent, badges }: {
               ))}
             </div>
           </div>
-          <p className="text-[10px] text-neutral-500 font-medium leading-none uppercase italic">
+          <p className="text-[10px] text-neutral-500 font-medium leading-none">
             {desc}
           </p>
         </div>

@@ -170,8 +170,8 @@ export default function RecepcionPage() {
             <ArrowLeft size={20} className="text-neutral-500" />
           </Link>
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1 italic text-center">Entrada de Material</span>
-            <span className="text-[8px] font-bold text-neutral-600 uppercase tracking-[0.2em] text-center">Bodega Piping</span>
+            <span className="text-[10px] font-bold text-emerald-500 tracking-widest mb-1">Entrada de Material</span>
+            <span className="text-[8px] font-bold text-neutral-600 tracking-[0.2em] text-center">Bodega Piping</span>
           </div>
           <div className="w-9" />
         </div>
@@ -185,8 +185,8 @@ export default function RecepcionPage() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-700 group-focus-within:text-emerald-500" size={16} />
                 <input 
                   type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="BUSCAR CÓDIGO O DESCRIPCIÓN..."
-                  className="w-full bg-black border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-xs font-black text-white outline-none focus:border-emerald-500/50 transition-all uppercase tracking-widest"
+                  placeholder="Buscar código o descripción..."
+                  className="w-full bg-black border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-xs font-bold text-white outline-none focus:border-emerald-500/50 transition-all tracking-widest"
                 />
               </div>
               <div className="relative">
@@ -194,9 +194,9 @@ export default function RecepcionPage() {
                 <select 
                   value={selectedGroup || ''} 
                   onChange={e => setSelectedGroup(e.target.value || null)}
-                  className="w-full bg-black border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-xs font-black text-emerald-500 outline-none focus:border-emerald-500/50 appearance-none uppercase tracking-widest cursor-pointer"
+                  className="w-full bg-black border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-xs font-bold text-emerald-500 outline-none focus:border-emerald-500/50 appearance-none tracking-widest cursor-pointer"
                 >
-                  <option value="">TODOS LOS GRUPOS</option>
+                  <option value="">Todos los Grupos</option>
                   {groups.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
@@ -211,7 +211,7 @@ export default function RecepcionPage() {
                 { label: 'E2', val: filterE2, set: setFilterE2, opts: uniqueE2 },
               ].map(f => (
                 <select key={f.label} value={f.val} onChange={e => f.set(e.target.value)} className="bg-black border border-neutral-900 rounded-lg px-3 py-2 text-[10px] font-black text-neutral-500 outline-none focus:border-emerald-500/30">
-                  <option value="">{f.label} (TODOS)</option>
+                  <option value="">{f.label} (Todos)</option>
                   {f.opts.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               ))}
@@ -223,7 +223,7 @@ export default function RecepcionPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 px-2">
                 <PackagePlus size={14} className="text-neutral-700" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-neutral-600 italic">Resultados Filtrados</span>
+                <span className="text-[10px] font-bold tracking-widest text-neutral-600">Resultados Filtrados</span>
               </div>
               <div className="grid grid-cols-1 gap-3 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
                 {materials.map(m => (
@@ -238,10 +238,10 @@ export default function RecepcionPage() {
                     <div className="flex-1 min-w-0">
                       <p className={`text-base md:text-lg font-mono font-black tracking-tighter leading-none mb-1 ${selectedMaterial?.id === m.id ? 'text-emerald-500' : 'text-white'}`}>{m.ident_code}</p>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] font-black bg-neutral-950 border border-neutral-800 px-2 py-0.5 rounded text-emerald-500/80">
+                        <span className="text-[10px] font-bold bg-neutral-950 border border-neutral-800 px-2 py-0.5 rounded text-emerald-500/80">
                           {m.input_1}{m.input_2 !== '0' && m.input_2 ? ` x ${m.input_2}` : ''} | {m.input_3}
                         </span>
-                        <p className="text-[11px] text-neutral-400 font-bold uppercase italic truncate flex-1">{m.descripcion}</p>
+                        <p className="text-[11px] text-neutral-400 font-medium truncate flex-1">{m.descripcion}</p>
                       </div>
                     </div>
                     {selectedMaterial?.id === m.id && <CheckCircle2 size={20} className="text-emerald-500 animate-in zoom-in" />}

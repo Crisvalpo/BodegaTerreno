@@ -26,6 +26,7 @@ export default function NuevoPedido() {
   // Paso 1: Usuario
   const [rut, setRut] = useState('')
   const [nombre, setNombre] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [usuario, setUsuario] = useState<any>(null)
 
   // Paso 2: Isométrico
@@ -101,15 +102,50 @@ export default function NuevoPedido() {
       let user = usuario
       if (!user) {
         const { data } = await supabase.from('usuarios').select('*').eq('rut', rut).single()
-        if (data) { user = data } 
+        if (data) { 
+          user = data
+          setUsuario(user)
+          if (!user.telefono) {
+            toast.info('Completa tu información de contacto')
+            setIsLoading(false)
+            return
+          }
+        } 
         else if (nombre) {
-          const { data: newUser, error } = await supabase.from('usuarios').insert({ rut, nombre, rol: 'operario' }).select().single()
+          if (!telefono || telefono.length !== 8) {
+            toast.error('Ingresa un teléfono válido (8 dígitos)')
+            setIsLoading(false)
+            return
+          }
+          const { data: newUser, error } = await supabase.from('usuarios').insert({ 
+            rut, 
+            nombre, 
+            telefono: '+569' + telefono,
+            rol: 'terreno' 
+          }).select().single()
           if (error) throw error
           user = newUser
         } else {
           toast.error('Operario no encontrado. Ingresa el nombre para registrar.'); return
         }
+      } else if (!user.telefono) {
+        // El usuario ya estaba cargado pero no tenía teléfono
+        if (!telefono || telefono.length !== 8) {
+          toast.error('Ingresa un teléfono válido (8 dígitos)')
+          setIsLoading(false)
+          return
+        }
+        const { data: updatedUser, error } = await supabase
+          .from('usuarios')
+          .update({ telefono: '+569' + telefono })
+          .eq('id', user.id)
+          .select()
+          .single()
+        
+        if (error) throw error
+        user = updatedUser
       }
+
       setUsuario(user); setStep(2)
     } catch (e: any) { toast.error(e.message) } finally { setIsLoading(false) }
   }
@@ -181,8 +217,8 @@ export default function NuevoPedido() {
             <X size={20} className="text-neutral-500" />
           </Link>
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1 italic">Nuevo Pedido</span>
-            <span className="text-[8px] font-bold text-neutral-600 uppercase tracking-[0.2em]">Paso {step} de 4</span>
+            <span className="text-[10px] font-bold text-emerald-500 tracking-widest mb-1 italic">Nuevo Pedido</span>
+            <span className="text-[8px] font-medium text-neutral-600 tracking-[0.2em]">Paso {step} de 4</span>
           </div>
           <div className="w-9" />
         </div>
@@ -194,8 +230,8 @@ export default function NuevoPedido() {
                 <div className="w-16 h-16 bg-neutral-900 border border-neutral-800 rounded-2xl flex items-center justify-center mb-6">
                   <UserIcon className="text-emerald-500" size={32} />
                 </div>
-                <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Identidad</h2>
-                <p className="text-xs text-neutral-500 uppercase tracking-widest mt-2">Valida tu RUT de operario</p>
+                <h2 className="text-2xl font-bold text-white tracking-tight">Identidad</h2>
+                <p className="text-xs text-neutral-500 tracking-widest mt-2">Valida tu RUT de operario</p>
               </div>
 
               <div className="space-y-4">
@@ -204,14 +240,32 @@ export default function NuevoPedido() {
                   placeholder="12345678-1"
                   className="w-full bg-black border border-neutral-800 rounded-xl px-6 py-5 text-xl font-mono text-emerald-500"
                 />
-                {!usuario && rut.length > 7 && (
-                  <input 
-                    type="text" value={nombre} onChange={e => setNombre(e.target.value.toUpperCase())}
-                    placeholder="NOMBRE COMPLETO"
-                    className="w-full bg-black border border-neutral-800 rounded-xl px-6 py-4 text-sm font-bold text-white uppercase"
-                  />
+                {(!usuario || (usuario && !usuario.telefono)) && rut.length > 7 && (
+                  <div className="space-y-4 animate-in slide-in-from-top-2">
+                    {!usuario && (
+                      <input 
+                        type="text" value={nombre} onChange={e => setNombre(e.target.value.toUpperCase())}
+                        placeholder="NOMBRE COMPLETO"
+                        className="w-full bg-black border border-neutral-800 rounded-xl px-6 py-4 text-sm font-bold text-white uppercase"
+                      />
+                    )}
+                    
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest italic ml-1">
+                        {usuario ? 'Falta teléfono de contacto:' : 'Teléfono de contacto:'}
+                      </p>
+                      <div className="flex gap-2">
+                        <div className="bg-neutral-800 px-4 py-4 rounded-xl text-xs font-black text-neutral-500 flex items-center">+569</div>
+                        <input 
+                          type="tel" maxLength={8} value={telefono} onChange={e => setTelefono(e.target.value.replace(/\D/g, ''))}
+                          placeholder="8 DÍGITOS"
+                          className="flex-1 bg-black border border-neutral-800 rounded-xl px-6 py-4 text-sm font-bold text-white uppercase font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 )}
-                <button onClick={handleUsuario} disabled={isLoading || !validateRut(rut)} className="w-full bg-emerald-500 text-black font-black py-5 rounded-xl uppercase text-xs tracking-widest mt-4 disabled:opacity-20">
+                <button onClick={handleUsuario} disabled={isLoading || !validateRut(rut)} className="w-full bg-emerald-500 text-black font-bold py-5 rounded-xl text-xs tracking-widest mt-4 disabled:opacity-20 transition-all active:scale-[0.98]">
                   {isLoading ? <Loader2 className="animate-spin mx-auto" /> : 'Continuar'}
                 </button>
               </div>
@@ -224,8 +278,8 @@ export default function NuevoPedido() {
                 <div className="w-16 h-16 bg-neutral-900 border border-neutral-800 rounded-2xl flex items-center justify-center mb-6">
                   <ScrollText className="text-blue-500" size={32} />
                 </div>
-                <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Destino</h2>
-                <p className="text-xs text-neutral-500 uppercase tracking-widest mt-2">Vincular a Isométrico</p>
+                <h2 className="text-2xl font-black text-white tracking-tighter italic">Destino</h2>
+                <p className="text-xs text-neutral-500 tracking-widest mt-2">Vincular a Isométrico</p>
               </div>
 
               <div className="space-y-4 relative">
@@ -264,8 +318,8 @@ export default function NuevoPedido() {
                         className="w-full text-left p-4 hover:bg-blue-500/10 transition-all flex items-center justify-between group"
                       >
                         <div className="flex flex-col">
-                          <span className="text-white font-black text-sm tracking-tighter uppercase italic">{iso.codigo}</span>
-                          <span className="text-[8px] text-neutral-500 font-bold uppercase tracking-widest italic">{iso.descripcion || 'Sin descripción'}</span>
+                          <span className="text-white font-bold text-sm tracking-tight">{iso.codigo}</span>
+                          <span className="text-[8px] text-neutral-500 font-bold tracking-widest">{iso.descripcion || 'Sin descripción'}</span>
                         </div>
                         <ChevronRight size={14} className="text-neutral-700 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
                       </button>
@@ -276,7 +330,7 @@ export default function NuevoPedido() {
                 <button 
                   onClick={handleIsometrico} 
                   disabled={!isometricoQuery}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all disabled:opacity-20"
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-5 rounded-xl text-xs tracking-widest shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all disabled:opacity-20"
                 >
                   {isLoading ? <Loader2 className="animate-spin mx-auto" /> : 'Confirmar Selección'}
                 </button>
@@ -291,7 +345,7 @@ export default function NuevoPedido() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-700" size={16} />
                     <input 
                       type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="BUSCAR MATERIAL..."
+                      placeholder="Ingresa Item Code"
                       className="w-full bg-black border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-xs font-bold text-white outline-none"
                     />
                   </div>
@@ -303,8 +357,9 @@ export default function NuevoPedido() {
                     <Plus size={20} />
                   </button>
                 </div>
-                <div className="px-2">
-                  <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic">Añadiendo para: {isometrico?.codigo}</span>
+                <div className="px-2 flex flex-col gap-1">
+                  <span className="text-[7px] font-bold text-neutral-500 tracking-widest">Añadiendo para:</span>
+                  <span className="text-lg font-bold text-blue-500 tracking-tight leading-tight">{isometrico?.codigo}</span>
                 </div>
 
               <div className="flex flex-col gap-3 pb-32">
@@ -321,20 +376,20 @@ export default function NuevoPedido() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-[10px] font-mono font-black text-white truncate leading-none">{m.ident_code}</p>
+                          <p className="text-[10px] font-mono font-bold text-white truncate leading-none">{m.ident_code}</p>
                           {isOutOfStock && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-[7px] font-black uppercase text-black italic animate-pulse">
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-[7px] font-bold uppercase text-black animate-pulse">
                               Sin Stock
                             </span>
                           )}
                         </div>
-                        <p className="text-[9px] text-neutral-500 font-bold uppercase italic leading-tight truncate">{m.descripcion}</p>
+                        <p className="text-[9px] text-neutral-500 font-bold uppercase leading-tight truncate">{m.descripcion}</p>
                         <div className="flex items-center gap-3 mt-2">
-                          <p className={`text-[8px] font-black uppercase tracking-widest ${isOutOfStock ? 'text-amber-500/60' : 'text-emerald-500/40'}`}>
+                          <p className={`text-[8px] font-bold uppercase tracking-widest ${isOutOfStock ? 'text-amber-500/60' : 'text-emerald-500/40'}`}>
                             Disponible: {stockTotal} {m.unidad}
                           </p>
                           {historicoConsumo[m.id] > 0 && (
-                            <span className="text-[7px] font-black text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 uppercase italic">
+                            <span className="text-[7px] font-bold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
                               Histórico: {historicoConsumo[m.id]} entregados
                             </span>
                           )}
@@ -386,8 +441,8 @@ export default function NuevoPedido() {
           {step === 4 && (
             <div className="flex flex-col items-center justify-center text-center py-20">
               <CheckCircle2 className="text-emerald-500 mb-8" size={64} />
-              <h2 className="text-3xl font-black text-white uppercase italic">Pedido Éxitoso</h2>
-              <Link href="/" className="mt-12 px-12 py-4 bg-neutral-900 border border-neutral-800 text-white font-black rounded-xl uppercase text-[10px] italic">Volver al Inicio</Link>
+              <h2 className="text-3xl font-black text-white italic">Pedido Éxitoso</h2>
+              <Link href="/" className="mt-12 px-12 py-4 bg-neutral-900 border border-neutral-800 text-white font-black rounded-xl text-[10px] italic">Volver al Inicio</Link>
             </div>
           )}
         </div>
@@ -401,7 +456,7 @@ export default function NuevoPedido() {
               </div>
               <button 
                 onClick={createPedido} 
-                className="bg-emerald-500 text-black px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2"
+                className="bg-emerald-500 text-black px-6 py-3 rounded-xl font-black text-[10px] tracking-widest flex items-center gap-2"
               >
                 <CheckCircle2 size={16} /> Finalizar Pedido
               </button>

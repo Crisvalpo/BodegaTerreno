@@ -173,7 +173,7 @@ export default function AdminDashboard() {
               <ChevronLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-3xl font-black text-white flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                 <Settings className="text-neutral-400" />
                 Panel Maestro
               </h1>
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
           <button 
             onClick={handleExportAll}
             disabled={isExporting}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 shadow-lg shadow-emerald-900/40 transition-all active:scale-95 disabled:opacity-50"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-2xl font-bold text-[10px] tracking-widest flex items-center gap-3 shadow-lg shadow-emerald-900/40 transition-all active:scale-95 disabled:opacity-50"
           >
             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {isExporting ? 'Exportando...' : 'Exportar Auditoría Total'}

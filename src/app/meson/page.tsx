@@ -573,7 +573,7 @@ function MesonContent() {
                 <div 
                   onClick={() => !selectedIso && isoInputRef.current?.focus()}
                   className={`relative border-2 transition-all duration-500 rounded-3xl p-6 shadow-2xl ${
-                    (!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? 'bg-amber-500/10 border-amber-500/50' : selectedIso ? 'bg-blue-500/10 border-blue-500/50' : 'bg-emerald-500/5 border-emerald-500/20'
+                    (!directUser.id || directUser.nombre === 'NUEVO OPERARIO' || !directUser.telefono || directUser.telefono === '+569') ? 'bg-amber-500/10 border-amber-500/50' : selectedIso ? 'bg-blue-500/10 border-blue-500/50' : 'bg-emerald-500/5 border-emerald-500/20'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-6">
@@ -584,23 +584,23 @@ function MesonContent() {
                         {(!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? <Users size={24} /> : <User size={24} />}
                       </div>
                       <div>
-                        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${(!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? 'text-amber-500' : selectedIso ? 'text-blue-400' : 'text-emerald-500'}`}>
-                          {(!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? 'REGISTRO DE NUEVO TRABAJADOR' : selectedIso ? 'Plano Seleccionado' : 'Entrega Directa'}
+                        <h4 className={`text-[10px] font-bold tracking-[0.2em] mb-1 ${(!directUser.id || directUser.nombre === 'NUEVO OPERARIO' || !directUser.telefono || directUser.telefono === '+569') ? 'text-amber-500' : selectedIso ? 'text-blue-400' : 'text-emerald-500'}`}>
+                          {(!directUser.id || directUser.nombre === 'NUEVO OPERARIO') ? 'Registro de nuevo trabajador' : (!directUser.telefono || directUser.telefono === '+569') ? 'Falta teléfono de contacto' : selectedIso ? 'Plano Seleccionado' : 'Entrega Directa'}
                         </h4>
-                        <p className="text-sm font-black text-white uppercase italic tracking-tight">{directUser.nombre || 'Nombre no registrado'}</p>
+                        <p className="text-sm font-bold text-white tracking-tight">{directUser.nombre || 'Nombre no registrado'}</p>
                         <p className="text-[9px] font-mono text-neutral-500">{directUser.rut}</p>
                       </div>
                     </div>
                     {selectedIso && (
                       <div className="flex flex-col items-end animate-in zoom-in">
-                        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest mb-1">ISO</span>
-                        <span className="text-xl font-black text-white font-mono italic leading-none">{selectedIso.codigo}</span>
+                        <span className="text-[8px] font-bold text-blue-500 tracking-widest mb-1">ISO</span>
+                        <span className="text-xl font-bold text-white font-mono leading-none">{selectedIso.codigo}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Formulario de Registro Exprés */}
-                  {(!directUser.id || directUser.nombre === 'NUEVO OPERARIO' || !directUser.nombre) && (
+                  {/* Formulario de Registro Exprés o Datos Faltantes */}
+                  {(!directUser.id || directUser.nombre === 'NUEVO OPERARIO' || !directUser.nombre || !directUser.telefono || directUser.telefono === '+569') && (
                     <div 
                       onClick={e => e.stopPropagation()} // <-- Evita que el clic en el formulario active el foco del Plano
                       className="mb-6 space-y-3 bg-black/50 p-4 rounded-2xl border border-amber-500/20 animate-in slide-in-from-top-2 relative z-50"
@@ -609,7 +609,7 @@ function MesonContent() {
                         type="text" 
                         value={directUser.nombre === 'NUEVO OPERARIO' ? '' : directUser.nombre} 
                         onChange={e => setDirectUser({...directUser, nombre: e.target.value.toUpperCase()})}
-                        placeholder="NOMBRE COMPLETO" 
+                        placeholder="Nombre Completo" 
                         className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-amber-500/50"
                       />
                       <div className="flex gap-2">
@@ -634,7 +634,7 @@ function MesonContent() {
                     <div className="relative group animate-in fade-in slide-in-from-bottom-2">
                       <div className="flex items-center gap-2 mb-3">
                         <Map size={14} className="text-blue-500 animate-pulse" />
-                        <span className="text-[10px] font-black text-blue-500/80 uppercase tracking-widest">Toca aquí para asignar Isométrico</span>
+                        <span className="text-[10px] font-bold text-blue-500/80 tracking-widest">Toca aquí para asignar Isométrico</span>
                       </div>
                       <div className="relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-700 group-focus-within:text-blue-500 transition-colors" />
