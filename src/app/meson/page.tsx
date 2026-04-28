@@ -30,6 +30,7 @@ type Pedido = {
       ident_code: string
       descripcion: string
       unidad: string
+      image_url?: string
       existencias: {
         id: string
         cantidad: number
@@ -109,7 +110,7 @@ function MesonContent() {
         setIsLoading(true)
         const { data, error } = await supabase
           .from('pedidos')
-          .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(id, ident_code, descripcion, unidad, existencias(id, cantidad, ubicacion_id, ubicaciones(zona, rack, nivel))))')
+          .select('*, usuarios(id, rut, nombre), isometricos(codigo), pedido_items(*, materiales(id, ident_code, descripcion, unidad, image_url, existencias(id, cantidad, ubicacion_id, ubicaciones(zona, rack, nivel))))')
           .eq('id', orderId)
           .single()
         
@@ -282,7 +283,7 @@ function MesonContent() {
   useEffect(() => {
     const searchItems = async () => {
       if (itemSearch.length < 3) { setFoundItems([]); return }
-      const { data } = await supabase.from('materiales').select('id, ident_code, descripcion, existencias(id, cantidad, ubicacion_id, ubicaciones(zona, rack, nivel))').or(`ident_code.ilike.%${itemSearch}%,descripcion.ilike.%${itemSearch}%`).limit(5)
+      const { data } = await supabase.from('materiales').select('id, ident_code, descripcion, image_url, existencias(id, cantidad, ubicacion_id, ubicaciones(zona, rack, nivel))').or(`ident_code.ilike.%${itemSearch}%,descripcion.ilike.%${itemSearch}%`).limit(5)
       setFoundItems(data || [])
     }
     const timer = setTimeout(searchItems, 300); return () => clearTimeout(timer)
@@ -698,10 +699,16 @@ function MesonContent() {
                             <button 
                               key={mat.id} 
                               onClick={() => addToDirect(mat)} 
-                              className={`w-full text-left p-5 transition-colors flex justify-between items-center group/mat ${
+                              className={`w-full text-left p-5 transition-colors flex items-center group/mat gap-4 ${
                                 hasStock ? 'hover:bg-emerald-500/10' : 'hover:bg-rose-500/5'
                               }`}
                             >
+                              {mat.image_url && (
+                                <div className="w-12 h-12 rounded-lg bg-black shrink-0 border border-neutral-800 overflow-hidden">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={mat.image_url} alt={mat.ident_code} className="w-full h-full object-cover" />
+                                </div>
+                              )}
                               <div className="flex-1 min-w-0 pr-4">
                                 <div className="flex items-center gap-3 mb-1">
                                   <span className="text-sm font-mono font-black text-white tracking-tighter">{mat.ident_code}</span>
@@ -760,10 +767,21 @@ function MesonContent() {
                 return (
                   <div key={item.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col gap-4">
                     <div className="flex gap-4">
-                      <div className="w-14 h-14 bg-black rounded-lg border border-neutral-800 flex flex-col items-center justify-center shrink-0">
-                        <span className="text-[8px] font-black text-neutral-700 uppercase leading-none mb-1">STOCK</span>
-                        <span className={`text-lg font-mono font-black italic leading-none ${stockTotal > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{stockTotal}</span>
-                      </div>
+                      {material.image_url ? (
+                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-black shrink-0 border border-neutral-800 relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={material.image_url} alt={material.ident_code} className="w-full h-full object-cover" />
+                          <div className="absolute inset-x-0 bottom-0 bg-black/80 backdrop-blur-sm p-0.5 text-center">
+                            <span className="text-[7px] font-black text-neutral-500 uppercase leading-none block mb-0.5">STOCK</span>
+                            <span className={`text-[10px] font-mono font-black italic leading-none ${stockTotal > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{stockTotal}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 bg-black rounded-lg border border-neutral-800 flex flex-col items-center justify-center shrink-0">
+                          <span className="text-[8px] font-black text-neutral-700 uppercase leading-none mb-1">STOCK</span>
+                          <span className={`text-lg font-mono font-black italic leading-none ${stockTotal > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{stockTotal}</span>
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">IDENT:</span>

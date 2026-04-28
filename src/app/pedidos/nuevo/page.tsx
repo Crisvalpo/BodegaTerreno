@@ -16,6 +16,7 @@ interface Material {
   ident_code: string
   descripcion: string
   unidad: string
+  image_url?: string
   existencias: any[]
 }
 
@@ -374,6 +375,12 @@ export default function NuevoPedido() {
                         isOutOfStock ? 'border-amber-500/30 bg-amber-500/5' : 'border-neutral-800'
                       }`}
                     >
+                      {m.image_url && (
+                        <div className="w-12 h-12 rounded-lg bg-black shrink-0 border border-neutral-800 overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={m.image_url} alt={m.ident_code} className="w-full h-full object-cover" />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-[10px] font-mono font-bold text-white truncate leading-none">{m.ident_code}</p>

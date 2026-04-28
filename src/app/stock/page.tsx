@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import Cookies from 'js-cookie'
+import ImagePromptModal from '@/components/ImagePromptModal'
 import { getStockAction } from '../actions/stock'
 
 type StockItem = {
@@ -37,6 +38,7 @@ type StockItem = {
     input_2?: string
     input_3?: string
     input_4?: string
+    image_url?: string
   }
   ubicaciones: {
     zona: string
@@ -57,6 +59,42 @@ function StockContent() {
   const [shortages, setShortages] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'stock' | 'history' | 'isos' | 'shortages'>('stock')
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [updatingImage, setUpdatingImage] = useState<string | null>(null)
+  const [promptModal, setPromptModal] = useState<{ isOpen: boolean, identCode: string, descripcion: string }>({ isOpen: false, identCode: '', descripcion: '' })
+
+  const handleUpdateImage = (identCode: string, descripcion: string) => {
+    // Buscar imagen en Google y luego abrir modal
+    const query = encodeURIComponent(descripcion)
+    window.open(`https://www.google.com/search?tbm=isch&q=${query}`, '_blank')
+    setPromptModal({ isOpen: true, identCode, descripcion })
+  }
+
+  const handleImagePromptSubmit = async (url: string) => {
+    setPromptModal({ isOpen: false, identCode: '', descripcion: '' })
+    
+    try {
+      setUpdatingImage(promptModal.identCode)
+      const { error } = await supabase
+        .from('materiales')
+        .update({ image_url: url })
+        .eq('ident_code', promptModal.identCode)
+
+      if (error) throw error
+      
+      // Actualizar estado local
+      setStock(prev => prev.map(item => 
+        item.materiales?.ident_code === promptModal.identCode 
+          ? { ...item, materiales: { ...item.materiales, image_url: url } } 
+          : item
+      ))
+      
+      toast.success('Imagen actualizada correctamente')
+    } catch (error: any) {
+      toast.error('Error al actualizar imagen', { description: error.message })
+    } finally {
+      setUpdatingImage(null)
+    }
+  }
 
   useEffect(() => {
     // Obtener rol del usuario desde la sesión o cookies (Sistema Nativo)
@@ -480,15 +518,52 @@ function StockContent() {
                         <tr key={idx} className="hover:bg-white/5 transition-colors group">
                           <td className="px-6 py-5">
                             <div className="flex flex-col">
-                              <div className="flex items-center gap-3 mb-1">
-                                <span className="text-white font-black text-lg tracking-tighter uppercase italic">{item.materiales?.ident_code}</span>
-                                {(item.materiales?.input_1 || item.materiales?.input_3) && (
-                                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase italic">
-                                    {item.materiales.input_1} {item.materiales.input_2 !== '0' && item.materiales.input_2 ? `x ${item.materiales.input_2}` : ''} | {item.materiales.input_3}
-                                  </span>
+                              <div className="flex items-start gap-4">
+                                {item.materiales?.image_url ? (
+                                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 flex-shrink-0 relative group">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={item.materiales.image_url} alt={item.materiales.ident_code} className="w-full h-full object-cover" />
+                                    {(userRole === 'admin' || userRole === 'bodeguero') && (
+                                      <button 
+                                        onClick={() => handleUpdateImage(item.materiales.ident_code, item.materiales.descripcion)}
+                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black text-white uppercase tracking-widest"
+                                      >
+                                        Cambiar
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (userRole === 'admin' || userRole === 'bodeguero') ? (
+                                  <button 
+                                    onClick={() => handleUpdateImage(item.materiales.ident_code, item.materiales.descripcion)}
+                                    disabled={updatingImage === item.materiales.ident_code}
+                                    className="w-16 h-16 rounded-xl bg-neutral-900/50 border border-dashed border-neutral-700 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-purple-400 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all flex-shrink-0 disabled:opacity-50"
+                                  >
+                                    {updatingImage === item.materiales.ident_code ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <>
+                                        <ArrowUpRight className="w-4 h-4" />
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-center px-1">Agregar<br/>Imagen</span>
+                                      </>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div className="w-16 h-16 rounded-xl bg-neutral-900/50 border border-neutral-800 flex items-center justify-center flex-shrink-0">
+                                    <Package className="w-6 h-6 text-neutral-700" />
+                                  </div>
                                 )}
+                                <div>
+                                  <div className="flex items-center gap-3 mb-1">
+                                    <span className="text-white font-black text-lg tracking-tighter uppercase italic">{item.materiales?.ident_code}</span>
+                                    {(item.materiales?.input_1 || item.materiales?.input_3) && (
+                                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase italic">
+                                        {item.materiales.input_1} {item.materiales.input_2 !== '0' && item.materiales.input_2 ? `x ${item.materiales.input_2}` : ''} | {item.materiales.input_3}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-neutral-500 text-xs font-bold uppercase italic line-clamp-2">{item.materiales?.descripcion}</span>
+                                </div>
                               </div>
-                              <span className="text-neutral-500 text-xs font-bold uppercase italic line-clamp-1">{item.materiales?.descripcion}</span>
                             </div>
                           </td>
                           <td className="px-6 py-5">
@@ -543,9 +618,45 @@ function StockContent() {
                           <p className="text-[10px] text-neutral-500 font-bold uppercase">Unidades</p>
                         </div>
                       </div>
-                      <p className="text-sm text-neutral-400 mb-4 line-clamp-2 leading-relaxed">
-                        {item.materiales?.descripcion}
-                      </p>
+                      
+                      <div className="flex gap-4 mb-4">
+                        {item.materiales?.image_url ? (
+                          <div className="w-20 h-20 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 flex-shrink-0 relative group">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={item.materiales.image_url} alt={item.materiales.ident_code} className="w-full h-full object-cover" />
+                            {(userRole === 'admin' || userRole === 'bodeguero') && (
+                              <button 
+                                onClick={() => handleUpdateImage(item.materiales.ident_code, item.materiales.descripcion)}
+                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black text-white uppercase tracking-widest"
+                              >
+                                Cambiar
+                              </button>
+                            )}
+                          </div>
+                        ) : (userRole === 'admin' || userRole === 'bodeguero') ? (
+                          <button 
+                            onClick={() => handleUpdateImage(item.materiales.ident_code, item.materiales.descripcion)}
+                            disabled={updatingImage === item.materiales.ident_code}
+                            className="w-20 h-20 rounded-xl bg-neutral-900/50 border border-dashed border-neutral-700 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-purple-400 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all flex-shrink-0 disabled:opacity-50"
+                          >
+                            {updatingImage === item.materiales.ident_code ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <>
+                                <ArrowUpRight className="w-5 h-5" />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-center px-1">Agregar<br/>Imagen</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <div className="w-20 h-20 rounded-xl bg-neutral-900/50 border border-neutral-800 flex items-center justify-center flex-shrink-0">
+                            <Package className="w-8 h-8 text-neutral-700" />
+                          </div>
+                        )}
+                        <p className="text-sm text-neutral-400 line-clamp-4 leading-relaxed flex-1">
+                          {item.materiales?.descripcion}
+                        </p>
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {item.ubicaciones_list.map((loc: string) => (
                           <div key={loc} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-neutral-900 border border-neutral-800 text-[10px] font-bold text-indigo-400">
@@ -735,7 +846,14 @@ function StockContent() {
             </div>
           </div>
         )}
-      </div>
+    </div>
+      <ImagePromptModal 
+        isOpen={promptModal.isOpen}
+        onClose={() => setPromptModal({ isOpen: false, identCode: '', descripcion: '' })}
+        onSubmit={handleImagePromptSubmit}
+        identCode={promptModal.identCode}
+        descripcion={promptModal.descripcion}
+      />
     </div>
   )
 }

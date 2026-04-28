@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabaseClient'
 import { UploadCloud, FileSpreadsheet, Loader2, Database, AlertCircle, Edit3, PlusCircle, Search, Filter } from 'lucide-react'
 import Link from 'next/link'
+import ImagePromptModal from '@/components/ImagePromptModal'
 
 type MaterialRow = {
   id?: string
@@ -23,6 +24,7 @@ type MaterialRow = {
   sap_mat_grp: string
   grupo: string
   part_group: string
+  image_url?: string
 }
 
 export default function CargaMasivaPage() {
@@ -57,6 +59,42 @@ export default function CargaMasivaPage() {
   const [searchGroup, setSearchGroup] = useState('')
   const [searchResults, setSearchResults] = useState<MaterialRow[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [updatingImage, setUpdatingImage] = useState<string | null>(null)
+  const [promptModal, setPromptModal] = useState<{ isOpen: boolean, identCode: string, descripcion: string }>({ isOpen: false, identCode: '', descripcion: '' })
+
+  const handleUpdateImage = (identCode: string, descripcion: string) => {
+    // Buscar imagen en Google y luego abrir modal
+    const query = encodeURIComponent(descripcion)
+    window.open(`https://www.google.com/search?tbm=isch&q=${query}`, '_blank')
+    setPromptModal({ isOpen: true, identCode, descripcion })
+  }
+
+  const handleImagePromptSubmit = async (url: string) => {
+    setPromptModal({ isOpen: false, identCode: '', descripcion: '' })
+    
+    try {
+      setUpdatingImage(promptModal.identCode)
+      const { error } = await supabase
+        .from('materiales')
+        .update({ image_url: url })
+        .eq('ident_code', promptModal.identCode)
+
+      if (error) throw error
+      
+      // Actualizar estado local
+      setSearchResults(prev => prev.map(item => 
+        item.ident_code === promptModal.identCode 
+          ? { ...item, image_url: url } 
+          : item
+      ))
+      
+      toast.success('Imagen actualizada correctamente')
+    } catch (error: any) {
+      toast.error('Error al actualizar imagen', { description: error.message })
+    } finally {
+      setUpdatingImage(null)
+    }
+  }
 
   // Cargar grupos existentes al abrir pestañas
   useEffect(() => {
@@ -460,7 +498,32 @@ export default function CargaMasivaPage() {
                   <div className="space-y-2">
                     {searchResults.map((item, idx) => (
                       <div key={idx} className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-500/50 transition-colors gap-4">
-                        <div className="flex-1">
+                        <div className="flex items-center gap-4 flex-1">
+                          {item.image_url ? (
+                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-black shrink-0 border border-neutral-800 relative group">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={item.image_url} alt={item.ident_code} className="w-full h-full object-cover" />
+                              <button 
+                                onClick={() => handleUpdateImage(item.ident_code, item.descripcion)}
+                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black text-white uppercase tracking-widest"
+                              >
+                                Cambiar
+                              </button>
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => handleUpdateImage(item.ident_code, item.descripcion)}
+                              disabled={updatingImage === item.ident_code}
+                              className="w-16 h-16 rounded-lg bg-black border border-dashed border-neutral-800 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-indigo-400 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all shrink-0 disabled:opacity-50"
+                            >
+                              {updatingImage === item.ident_code ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <span className="text-[8px] font-black uppercase tracking-widest text-center px-1">Agregar<br/>Imagen</span>
+                              )}
+                            </button>
+                          )}
+                          <div className="flex-1">
                           <div className="flex items-center gap-3 mb-1">
                             <span className="text-lg font-black text-white">{item.ident_code}</span>
                             <span className="text-xs font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400">
@@ -468,6 +531,7 @@ export default function CargaMasivaPage() {
                             </span>
                           </div>
                           <p className="text-sm text-neutral-400 line-clamp-1">{item.descripcion}</p>
+                        </div>
                         </div>
                         <div className="text-left md:text-right">
                           <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Spec Code(s)</p>
@@ -496,6 +560,13 @@ export default function CargaMasivaPage() {
 
         </div>
       </div>
+      <ImagePromptModal 
+        isOpen={promptModal.isOpen}
+        onClose={() => setPromptModal({ isOpen: false, identCode: '', descripcion: '' })}
+        onSubmit={handleImagePromptSubmit}
+        identCode={promptModal.identCode}
+        descripcion={promptModal.descripcion}
+      />
     </div>
   )
 }

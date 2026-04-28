@@ -9,6 +9,7 @@ import {
   Activity, Loader2, ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
+import ImagePromptModal from '@/components/ImagePromptModal'
 
 export default function RecepcionPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -19,6 +20,46 @@ export default function RecepcionPage() {
   const [materials, setMaterials] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null)
+  const [updatingImage, setUpdatingImage] = useState<string | null>(null)
+  const [promptModal, setPromptModal] = useState<{ isOpen: boolean, identCode: string, descripcion: string }>({ isOpen: false, identCode: '', descripcion: '' })
+
+  const handleUpdateImage = (identCode: string, descripcion: string) => {
+    // Buscar imagen en Google y luego abrir modal
+    const query = encodeURIComponent(descripcion)
+    window.open(`https://www.google.com/search?tbm=isch&q=${query}`, '_blank')
+    setPromptModal({ isOpen: true, identCode, descripcion })
+  }
+
+  const handleImagePromptSubmit = async (url: string) => {
+    setPromptModal({ isOpen: false, identCode: '', descripcion: '' })
+    
+    try {
+      setUpdatingImage(promptModal.identCode)
+      const { error } = await supabase
+        .from('materiales')
+        .update({ image_url: url })
+        .eq('ident_code', promptModal.identCode)
+
+      if (error) throw error
+      
+      // Actualizar estado local
+      setMaterials(prev => prev.map(item => 
+        item.ident_code === promptModal.identCode 
+          ? { ...item, image_url: url } 
+          : item
+      ))
+
+      if (selectedMaterial && selectedMaterial.ident_code === promptModal.identCode) {
+        setSelectedMaterial({ ...selectedMaterial, image_url: url })
+      }
+      
+      toast.success('Imagen actualizada correctamente')
+    } catch (error: any) {
+      toast.error('Error al actualizar imagen', { description: error.message })
+    } finally {
+      setUpdatingImage(null)
+    }
+  }
 
   // Filtros Técnicos de Búsqueda
   const [filterD1, setFilterD1] = useState('')
@@ -232,8 +273,13 @@ export default function RecepcionPage() {
                     onClick={() => setSelectedMaterial(m)}
                     className={`w-full border rounded-2xl p-5 text-left flex items-center gap-5 transition-all group ${selectedMaterial?.id === m.id ? 'bg-emerald-500/10 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.15)]' : 'bg-neutral-900 border-neutral-800 hover:border-neutral-700'}`}
                   >
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center border shrink-0 transition-colors ${selectedMaterial?.id === m.id ? 'bg-emerald-500 border-emerald-400' : 'bg-black border-neutral-800'}`}>
-                      <PackagePlus size={24} className={selectedMaterial?.id === m.id ? 'text-black' : 'text-neutral-500'} />
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center border shrink-0 transition-colors overflow-hidden ${selectedMaterial?.id === m.id ? 'bg-emerald-500 border-emerald-400' : 'bg-black border-neutral-800'}`}>
+                      {m.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={m.image_url} alt={m.ident_code} className="w-full h-full object-cover" />
+                      ) : (
+                        <PackagePlus size={24} className={selectedMaterial?.id === m.id ? 'text-black' : 'text-neutral-500'} />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-base md:text-lg font-mono font-black tracking-tighter leading-none mb-1 ${selectedMaterial?.id === m.id ? 'text-emerald-500' : 'text-white'}`}>{m.ident_code}</p>
@@ -263,8 +309,39 @@ export default function RecepcionPage() {
                         <X size={20} />
                       </button>
                     </div>
-                    <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic mb-2 leading-none">{selectedMaterial.ident_code}</h2>
-                    <p className="text-sm text-neutral-400 font-bold uppercase italic leading-relaxed">{selectedMaterial.descripcion}</p>
+                    <div className="flex gap-6 mb-6">
+                      {selectedMaterial.image_url ? (
+                        <div className="w-24 h-24 rounded-2xl overflow-hidden bg-black border border-neutral-800 shrink-0 relative group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={selectedMaterial.image_url} alt={selectedMaterial.ident_code} className="w-full h-full object-cover" />
+                          <button 
+                            onClick={() => handleUpdateImage(selectedMaterial.ident_code, selectedMaterial.descripcion)}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black text-white uppercase tracking-widest"
+                          >
+                            Cambiar
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => handleUpdateImage(selectedMaterial.ident_code, selectedMaterial.descripcion)}
+                          disabled={updatingImage === selectedMaterial.ident_code}
+                          className="w-24 h-24 rounded-2xl bg-black border border-dashed border-neutral-800 flex flex-col items-center justify-center gap-2 text-neutral-500 hover:text-emerald-400 hover:border-emerald-500/50 transition-all shrink-0 disabled:opacity-50"
+                        >
+                          {updatingImage === selectedMaterial.ident_code ? (
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                          ) : (
+                            <>
+                              <PackagePlus className="w-6 h-6" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-center px-2">Agregar<br/>Imagen</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                      <div>
+                        <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic mb-2 leading-none">{selectedMaterial.ident_code}</h2>
+                        <p className="text-sm text-neutral-400 font-bold uppercase italic leading-relaxed">{selectedMaterial.descripcion}</p>
+                      </div>
+                    </div>
                     
                     <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-neutral-800/50">
                       <div>
@@ -381,6 +458,13 @@ export default function RecepcionPage() {
           </div>
         </div>
       </div>
+      <ImagePromptModal 
+        isOpen={promptModal.isOpen}
+        onClose={() => setPromptModal({ isOpen: false, identCode: '', descripcion: '' })}
+        onSubmit={handleImagePromptSubmit}
+        identCode={promptModal.identCode}
+        descripcion={promptModal.descripcion}
+      />
     </main>
   )
 }
