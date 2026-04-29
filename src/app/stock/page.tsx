@@ -24,6 +24,7 @@ import {
 import * as XLSX from 'xlsx'
 import Cookies from 'js-cookie'
 import ImagePromptModal from '@/components/ImagePromptModal'
+import AjusteModal from '@/components/AjusteModal'
 import { getStockAction } from '../actions/stock'
 
 type StockItem = {
@@ -61,6 +62,8 @@ function StockContent() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [updatingImage, setUpdatingImage] = useState<string | null>(null)
   const [promptModal, setPromptModal] = useState<{ isOpen: boolean, identCode: string, descripcion: string }>({ isOpen: false, identCode: '', descripcion: '' })
+  const [isAjusteModalOpen, setIsAjusteModalOpen] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const handleUpdateImage = (identCode: string, descripcion: string) => {
     // Buscar imagen en Google y luego abrir modal
@@ -105,6 +108,7 @@ function StockContent() {
           const user = JSON.parse(storedUser)
           console.log('Sesión detectada:', user.nombre, 'Rol:', user.rol)
           setUserRole(user.rol || null)
+          setUserId(user.id || null)
         } else {
           console.log('No se encontró sesión activa en cookies ni localStorage')
         }
@@ -434,6 +438,14 @@ function StockContent() {
               >
                 <Download size={16} />
                 Exportar Excel
+              </button>
+            )}
+            {(userRole === 'admin' || userRole === 'bodeguero') && (
+              <button 
+                onClick={() => setIsAjusteModalOpen(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-rose-900/20 active:scale-95 whitespace-nowrap"
+              >
+                Ajuste Manual
               </button>
             )}
           </div>
@@ -853,6 +865,16 @@ function StockContent() {
         onSubmit={handleImagePromptSubmit}
         identCode={promptModal.identCode}
         descripcion={promptModal.descripcion}
+      />
+      <AjusteModal
+        isOpen={isAjusteModalOpen}
+        onClose={() => setIsAjusteModalOpen(false)}
+        onSuccess={() => {
+          fetchStock()
+          fetchHistory()
+        }}
+        userRole={userRole}
+        userId={userId}
       />
     </div>
   )

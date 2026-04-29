@@ -157,6 +157,8 @@ export default function RecepcionPage() {
 
   const handleReceive = async () => {
     if (!selectedMaterial || !qty || !ubicacionId) return
+    if (Number(qty) <= 0) return toast.error('La cantidad a ingresar debe ser mayor a cero.')
+    
     setIsLoading(true)
     try {
       // 1. Actualizar Metadatos del Material
@@ -362,7 +364,14 @@ export default function RecepcionPage() {
                         Cantidad a Ingresar
                       </label>
                       <input 
-                        type="number" value={qty} onChange={e => setQty(e.target.value)}
+                        type="number" 
+                        min="1"
+                        value={qty} 
+                        onChange={e => {
+                          const val = Number(e.target.value)
+                          if (val < 0) setQty('1')
+                          else setQty(e.target.value)
+                        }}
                         placeholder="0"
                         className="w-full bg-black border-2 border-neutral-800 rounded-2xl px-6 py-8 text-7xl font-mono text-emerald-500 text-center focus:border-emerald-500 outline-none transition-all shadow-inner"
                       />
